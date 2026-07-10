@@ -7,6 +7,21 @@
   'use strict';
 
   /* =====================================================================
+   * REAL EMAIL SETUP (optional). Leave blank → the "Email me my plan" box
+   * stays an offline capture (saves locally, no send). Fill all three from
+   * your EmailJS account to send the plan to the address the visitor types.
+   * Steps in README → "Turn on real email". No SDK/CDN — plain fetch.
+   * ===================================================================== */
+  var EMAIL_CONFIG = {
+    serviceId: '',   // EmailJS service_id  (e.g. "service_ab12cd")
+    templateId: '',  // EmailJS template_id (e.g. "template_xy34z")
+    publicKey: ''    // EmailJS Public Key  (Account → General)
+  };
+  function emailEnabled() {
+    return EMAIL_CONFIG.serviceId && EMAIL_CONFIG.templateId && EMAIL_CONFIG.publicKey;
+  }
+
+  /* =====================================================================
    * INLINE FALLBACK DATA (used only when data/courses.js & data/events.js
    * are missing or empty). Schemas match SPEC.md exactly. The data-courses
    * and data-events agents own the full curated sets.
@@ -542,10 +557,10 @@
             '<p class="teaser-txt">Finish Step 1, show up to one room, and your next rung — a project, a deeper course, a community — gets a lot more obvious. Get the plan in your inbox so it’s there when you’re ready.</p></article>' +
         '</div>' +
         '<div class="email-door card">' +
-          '<div class="email-head">' + icon('mail') + '<div><strong>Email me my plan</strong><span>We’ll nudge you when it’s time to show up.</span></div></div>' +
+          '<div class="email-head">' + icon('mail') + '<div><strong>Email me my plan</strong><span>' + (emailEnabled() ? 'Get the full plan in your inbox — links and all.' : 'We’ll keep it for you to come back to.') + '</span></div></div>' +
           '<form class="email-form" id="email-form">' +
             '<input id="email-input" type="email" required placeholder="you@email.com" aria-label="Your email" />' +
-            '<button class="btn btn-primary" type="submit">Send it</button>' +
+            '<button class="btn btn-primary" id="email-send-btn" type="submit">Send it</button>' +
           '</form>' +
         '</div>' +
       '</section>'
@@ -565,13 +580,71 @@
     });
     document.getElementById('email-form').addEventListener('submit', function (e) {
       e.preventDefault();
-      var email = document.getElementById('email-input').value.trim();
+      var input = document.getElementById('email-input');
+      var btn = document.getElementById('email-send-btn');
+      var email = input.value.trim();
       if (!email) return;
       var s = loadStore();
       s.email = email; s.answers = state.answers; s.plan = summarizePlanForStore(p); s.ts = Date.now();
       saveStore(s);
-      toast('Plan sent — we’ll nudge you when it’s time.');
-      document.getElementById('email-input').value = '';
+
+      if (!emailEnabled()) {
+        // No email service configured — honest offline capture, no false "sent".
+        toast('Saved on this device. Add an email key to receive it — see README.');
+        input.value = '';
+        return;
+      }
+
+      btn.disabled = true; var label = btn.textContent; btn.textContent = 'Sending…';
+      sendPlanEmail(email, p).then(function () {
+        toast('Plan sent to ' + email + ' — check your inbox.');
+        input.value = '';
+      }).catch(function (err) {
+        toast('Couldn’t send just now — your plan is saved. (' + (err && err.message ? err.message : 'try again') + ')');
+      }).then(function () {
+        btn.disabled = false; btn.textContent = label;
+      });
+    });
+  }
+
+  function planToText(p, email) {
+    var lines = [];
+    if (p.course) {
+      lines.push('STEP 1 — START THIS COURSE');
+      lines.push(p.course.title + '  (' + p.course.provider + ')');
+      if (p.why && p.why.course) lines.push('Why: ' + p.why.course);
+      if (p.course.firstStep) lines.push('First step: ' + p.course.firstStep);
+      lines.push(p.course.url);
+      lines.push('');
+    }
+    lines.push('STEP 2 — SHOW UP TO THESE ROOMS');
+    p.events.forEach(function (e) {
+      lines.push('• ' + e.title + '  —  ' + (e.dateLabel || '') + (e.mode === 'online' ? ' · Online' : (e.city ? ' · ' + e.city : '')));
+      if (e.beginnerSafe) lines.push('  Beginner-safe. ' + (e.beginnerNote || ''));
+      lines.push('  ' + e.url);
+    });
+    lines.push('');
+    lines.push('Made with OnRamp — https://vanshul2304.github.io/onramp-hackathon/');
+    return lines.join('\n');
+  }
+
+  function sendPlanEmail(email, p) {
+    var payload = {
+      service_id: EMAIL_CONFIG.serviceId,
+      template_id: EMAIL_CONFIG.templateId,
+      user_id: EMAIL_CONFIG.publicKey,
+      template_params: {
+        to_email: email,
+        course_title: p.course ? p.course.title : 'Your AI starting point',
+        plan_text: planToText(p, email)
+      }
+    };
+    return fetch('https://api.emailjs.com/api/v1.0/email/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(function (res) {
+      if (!res.ok) { return res.text().then(function (t) { throw new Error(t || ('HTTP ' + res.status)); }); }
     });
   }
 
