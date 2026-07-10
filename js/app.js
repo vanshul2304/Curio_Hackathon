@@ -505,7 +505,9 @@
         (e.beginnerSafe ? '<div class="safe-tag">' + icon('shield') + '<span>Beginner-safe</span></div>' +
           (e.beginnerNote ? '<p class="safe-note">' + esc(e.beginnerNote) + '</p>' : '') : '') +
         '<p class="why"><span class="why-tag">Why this room</span>' + esc(p.why.events[e.id] || '') + '</p>' +
-        (joins ? '<button class="learn-first" data-scroll="course-anchor">' + icon('book') + 'Learn this first — your Step 1 course covers ' + esc(e.prepTopic) + '</button>' : '') +
+        (c ? '<button class="learn-first" data-scroll="course-anchor">' + icon('book') + (joins
+          ? 'Learn this first — your Step 1 course covers ' + esc(e.prepTopic)
+          : 'Learn this first — warm up with your Step 1 course') + '</button>' : '') +
         '<div class="event-actions">' +
           '<button class="btn btn-secondary save-btn' + (isSaved ? ' saved' : '') + '" data-save="' + esc(e.id) + '" aria-pressed="' + (isSaved ? 'true' : 'false') + '">' + icon('bookmark') + '<span class="save-txt">' + (isSaved ? 'Saved' : 'Save') + '</span></button>' +
           '<a class="btn btn-primary" href="' + esc(e.url) + '" target="_blank" rel="noopener">Sign up <span class="ar">' + icon('arrow') + '</span></a>' +
