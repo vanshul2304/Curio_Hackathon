@@ -1,0 +1,23 @@
+name: Refresh events data
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Refresh events
+        run: node scripts/refresh-events.mjs
+      - name: Commit if changed
+        run: |
+          git config user.name "onramp-refresh-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/events.js
+          git diff --cached --quiet && echo "No changes" || (git commit -m "chore: refresh events data" && git push)

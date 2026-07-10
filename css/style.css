@@ -415,6 +415,8 @@ input { font: inherit; }
 .safe-tag .ic { width: 1.05em; height: 1.05em; }
 .safe-note { color: var(--muted); font-size: .85rem; margin: .45rem 0 .2rem; }
 .event-card .why { margin-top: .8rem; }
+.fresh-stamp { display: flex; align-items: center; gap: .4rem; color: var(--mint); font-size: .8rem; letter-spacing: .02em; margin: -.2rem 0 .9rem; opacity: .85; }
+.fresh-stamp .ic, .fresh-stamp svg { width: 1em; height: 1em; flex-shrink: 0; }
 
 .learn-first {
   display: inline-flex; align-items: center; gap: .45rem;

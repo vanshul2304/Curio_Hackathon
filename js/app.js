@@ -457,6 +457,16 @@
     renderPlan();
   }
 
+  function freshLabel(iso) {
+    var d = new Date(iso);
+    if (isNaN(d)) return 'today';
+    var mins = Math.max(0, Math.round((Date.now() - d.getTime()) / 60000));
+    if (mins < 60) return mins + ' min ago';
+    var hrs = Math.round(mins / 60);
+    if (hrs < 24) return hrs + (hrs === 1 ? ' hour ago' : ' hours ago');
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+
   function summaryLine(a) {
     var lvl = { new: 'starting from zero', dabbled: 'past the tutorials', coder: 'a coder new to AI' }[a.level] || '';
     var goal = { job: 'aiming to get hired', switch: 'switching careers', build: 'here to build', understand: 'here to get literate' }[a.goal] || '';
@@ -525,7 +535,9 @@
         '<p class="plan-summary">' + esc(summaryLine(a)) + '</p>' +
         '<div class="spine">' +
           courseCard +
-          '<div class="spine-events"><div class="step-badge ghost"><span class="step-num">2</span> Show up to these rooms</div>' + eventCards + '</div>' +
+          '<div class="spine-events"><div class="step-badge ghost"><span class="step-num">2</span> Show up to these rooms</div>' +
+            (window.EVENTS_UPDATED ? '<p class="fresh-stamp">' + icon('spark') + 'Live events — refreshed ' + esc(freshLabel(window.EVENTS_UPDATED)) + '</p>' : '') +
+            eventCards + '</div>' +
           '<article class="card teaser" style="--d:' + (200 + p.events.length * 90 + 90) + 'ms"><div class="step-badge ghost"><span class="step-num">3</span> What’s next</div>' +
             '<p class="teaser-txt">Finish Step 1, show up to one room, and your next rung — a project, a deeper course, a community — gets a lot more obvious. Get the plan in your inbox so it’s there when you’re ready.</p></article>' +
         '</div>' +
