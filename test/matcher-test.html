@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OnRamp — matcher test (all 144 combos)</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+           background: #051117; color: #F2F7F6; padding: 1.5rem; }
+    h1 { font-size: 1.3rem; margin-bottom: 1rem; }
+    #banner { padding: 1rem 1.5rem; border-radius: .75rem; font-size: 1.4rem; font-weight: 800; margin-bottom: 1rem; }
+    #banner.pass { background: rgba(122,226,207,.15); color: #7AE2CF; border: 1px solid #7AE2CF; }
+    #banner.fail { background: rgba(255,94,94,.15); color: #FF6B5E; border: 1px solid #FF6B5E; }
+    .meta { color: #8A9BA3; margin-bottom: 1.2rem; font-size: .9rem; }
+    table { border-collapse: collapse; width: 100%; font-size: .82rem; }
+    th, td { border: 1px solid #374145; padding: .35rem .6rem; text-align: left; }
+    th { background: #151F25; }
+    tr.ok td:first-child { color: #7AE2CF; }
+    tr.bad { background: rgba(255,94,94,.12); }
+    tr.bad td:first-child { color: #FF6B5E; font-weight: 700; }
+    .fails { margin: 1rem 0; color: #FF6B5E; white-space: pre-wrap; font-family: monospace; font-size: .85rem; }
+  </style>
+</head>
+<body>
+  <h1>OnRamp matcher — exhaustive combo test</h1>
+  <div id="banner">Running…</div>
+  <div class="meta" id="meta"></div>
+  <div class="fails" id="fails"></div>
+  <table id="results">
+    <thead><tr><th></th><th>level</th><th>goal</th><th>hours</th><th>motivation</th><th>location</th><th>course</th><th># events</th><th>notes</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <script src="../data/courses.js"></script>
+  <script src="../data/events.js"></script>
+  <script src="../js/matcher.js"></script>
+  <script src="../js/app.js"></script><!-- no #app here: boots nothing, just exposes SAMPLE_* fallback -->
+  <script>
+    var COURSES = (window.COURSES && window.COURSES.length) ? window.COURSES : window.SAMPLE_COURSES;
+    var EVENTS  = (window.EVENTS  && window.EVENTS.length)  ? window.EVENTS  : window.SAMPLE_EVENTS;
+
+    var LEVELS = ['new', 'dabbled', 'coder'];
+    var GOALS = ['job', 'switch', 'build', 'understand'];
+    var HOURS = ['lt3', '3to6', '7plus'];
+    var MOTS = ['escape', 'compete', 'curious', 'belong'];
+
+    var cases = [];
+    LEVELS.forEach(function (level) { GOALS.forEach(function (goal) { HOURS.forEach(function (hours) { MOTS.forEach(function (motivation) {
+      cases.push({ level: level, goal: goal, hours: hours, motivation: motivation, location: { city: null, onlineOnly: true } });
+    }); }); }); });
+    // a couple of city cases on top of the 144
+    cases.push({ level: 'new', goal: 'understand', hours: 'lt3', motivation: 'belong', location: { city: 'San Francisco', onlineOnly: false } });
+    cases.push({ level: 'coder', goal: 'build', hours: '7plus', motivation: 'compete', location: { city: 'berlin', onlineOnly: false } });
+
+    var tbody = document.querySelector('#results tbody');
+    var failures = [];
+    var passCount = 0;
+
+    cases.forEach(function (a, i) {
+      var notes = [];
+      var plan = null;
+      try { plan = window.buildPlan(a, COURSES, EVENTS); }
+      catch (e) { notes.push('threw: ' + e.message); }
+
+      if (plan) {
+        if (!plan.course) notes.push('course is null');
+        else if (plan.course.levels.indexOf(a.level) === -1) notes.push('course level violates answers.level');
+        if (!plan.events || plan.events.length < 2) notes.push('fewer than 2 events');
+        if (!plan.why || !plan.why.course) notes.push('missing course why-line');
+        (plan.events || []).forEach(function (e) {
+          if (!plan.why.events[e.id]) notes.push('missing why-line for event ' + e.id);
+        });
+      }
+
+      var ok = notes.length === 0;
+      if (ok) passCount++;
+      else failures.push('#' + (i + 1) + ' ' + [a.level, a.goal, a.hours, a.motivation].join('/') + ' → ' + notes.join('; '));
+
+      var tr = document.createElement('tr');
+      tr.className = ok ? 'ok' : 'bad';
+      tr.innerHTML = '<td>' + (ok ? '✓' : '✗') + '</td><td>' + a.level + '</td><td>' + a.goal + '</td><td>' + a.hours +
+        '</td><td>' + a.motivation + '</td><td>' + (a.location.city || 'online-only') +
+        '</td><td>' + (plan && plan.course ? plan.course.id : '—') +
+        '</td><td>' + (plan && plan.events ? plan.events.length : 0) +
+        '</td><td>' + (notes.join('; ') || '') + '</td>';
+      tbody.appendChild(tr);
+    });
+
+    var banner = document.getElementById('banner');
+    var allPass = failures.length === 0;
+    banner.textContent = (allPass ? 'PASS' : 'FAIL') + ' — ' + passCount + '/' + cases.length + ' combos ok';
+    banner.className = allPass ? 'pass' : 'fail';
+    document.getElementById('meta').textContent =
+      'Data: ' + COURSES.length + ' courses (' + ((window.COURSES && window.COURSES.length) ? 'data/courses.js' : 'inline fallback') + '), ' +
+      EVENTS.length + ' events (' + ((window.EVENTS && window.EVENTS.length) ? 'data/events.js' : 'inline fallback') + '). ' +
+      '144 exhaustive combos + ' + (cases.length - 144) + ' city cases.';
+    document.getElementById('fails').textContent = failures.join('\n');
+  </script>
+</body>
+</html>
