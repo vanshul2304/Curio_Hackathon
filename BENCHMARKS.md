@@ -1,0 +1,25 @@
+# OnRamp MVP — Ship Benchmarks (from MoSCoW Musts)
+
+Every loop iteration scores this table. MVP ships when all MUST rows pass.
+
+| # | Benchmark | Bar | Status |
+|---|-----------|-----|--------|
+| M1 | Motivation-aware intake | 5 quick taps incl. WHY (escape/compete/curious/belong), <45s to finish | ☐ |
+| M2 | Rules matcher | Non-empty plan for ALL 144 intake combos (automated test passes) | ☐ |
+| M3 | Plan screen | 1 course + 2–3 events, ordered "step 1 of 3" framing | ☐ |
+| M4 | Why-lines | Every pick has a personal "why this fits you" referencing the user's answers | ☐ |
+| M5 | Beginner-safe join | Events carry 🛡 tag + note + "learn this first" link → the plan's course | ☐ |
+| M6 | Curated courses | ≥18 real courses, real URLs, tagged so every combo has a level-correct hit | ☐ |
+| M7 | Real events | ≥15 real events dated Jul 12–Aug 31 2026, real signup URLs, ≥8 online | ☐ |
+| M8 | Mobile <2min | Flow completes on 375px viewport, no horizontal scroll, loads instantly | ☐ |
+| M9 | Anti-ChatGPT line | Landing answers "why not ChatGPT?" in one line | ☐ |
+| S1 | Email fake-door | Capture + success toast, localStorage, no oversell copy | ☐ |
+| S2 | Save buttons + progress cue | Save toggles persist; "step N of 3" visible | ☐ |
+| S3 | Vivid design | Dark+mint Neurovia-derived system, custom SVG icons, micro-interactions, zero external CDN | ☐ |
+| S4 | Honesty | No UI copy claims a built weekly loop or accounts | ☐ |
+
+Verification method per iteration:
+1. Open in browser at 375px, run full flow as 3 different personas (Riya/new, Sam/coder-job, Diana/switch).
+2. Open test/matcher-test.html → all combos green.
+3. Spot-check 5 random course URLs + 5 event URLs resolve (HTTP 200).
+4. Screenshot proof.
