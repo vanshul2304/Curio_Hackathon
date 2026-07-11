@@ -196,6 +196,10 @@
       case 'pin':
         return wrap('<path d="M12 21s6-5.3 6-9.5A6 6 0 1 0 6 11.5C6 15.7 12 21 12 21Z" stroke="#7AE2CF" stroke-width="1.6" stroke-linejoin="round"/>' +
           '<circle cx="12" cy="11" r="2.2" fill="#7AE2CF"/>');
+      case 'search':
+        return wrap('<circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>');
+      case 'grid':
+        return wrap('<rect x="4" y="4" width="7" height="7" rx="1.6" stroke="currentColor" stroke-width="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6" stroke="currentColor" stroke-width="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6" stroke="currentColor" stroke-width="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6" stroke="currentColor" stroke-width="1.6"/>');
       case 'arrow':
         return wrap('<path d="M5 12h13m0 0-5-5m5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>');
       case 'back':
@@ -268,6 +272,8 @@
   var state = {
     screen: 'landing',
     step: 0,
+    focus: 'all',          // what the visitor is looking for (segmented filter)
+    browseQuery: '',       // current search text on the browse screen
     answers: { level: null, goal: null, hours: null, motivation: null, location: { city: null, onlineOnly: false } },
     plan: null,
     saved: (loadStore().saved || [])
@@ -298,6 +304,36 @@
   /* =====================================================================
    * LANDING
    * ===================================================================== */
+  /* Segmented filter — "what are you looking for". Maps to real event kinds + courses. */
+  var FOCUS = [
+    { key: 'all', label: 'All' },
+    { key: 'course', label: 'Courses' },
+    { key: 'meetup', label: 'Meetups' },
+    { key: 'workshop', label: 'Workshops' },
+    { key: 'hackathon', label: 'Hackathons' },
+    { key: 'talk', label: 'Talks' },
+    { key: 'study-group', label: 'Study groups' }
+  ];
+  function focusLabel(key) {
+    for (var i = 0; i < FOCUS.length; i++) if (FOCUS[i].key === key) return FOCUS[i].label;
+    return 'All';
+  }
+  var KIND_LABEL = { meetup: 'Meetup', workshop: 'Workshop', hackathon: 'Hackathon', talk: 'Talk', 'study-group': 'Study group' };
+  function kindLabel(k) { return KIND_LABEL[k] || (k || 'Event'); }
+
+  function focusChips() {
+    return FOCUS.map(function (f) {
+      var sel = state.focus === f.key;
+      return '<button class="focus-chip' + (sel ? ' selected' : '') + '" type="button" data-focus="' + esc(f.key) + '" aria-pressed="' + (sel ? 'true' : 'false') + '">' + esc(f.label) + '</button>';
+    }).join('');
+  }
+  function focusCount(f) {
+    if (f === 'course') return getCourses().length;
+    var evs = getEvents();
+    if (f === 'all') return getCourses().length + evs.length;
+    return evs.filter(function (e) { return e.kind === f; }).length;
+  }
+
   function renderLanding() {
     state.screen = 'landing';
     render(
@@ -307,10 +343,19 @@
         '<div class="hero">' +
           '<div class="brand"><span class="brand-mark">' + icon('compass', 'brand-ic') + '</span><span class="brand-name">OnRamp</span></div>' +
           '<h1 class="hero-title">Stop doomscrolling AI courses.<br><span class="grad">Get your one next step.</span></h1>' +
-          '<p class="hero-sub">One curated course to start tonight, two or three real rooms to walk into this month, and a plan that actually fits your week — not another 200-tab rabbit hole.</p>' +
-          '<div class="anti-gpt"><span class="anti-ic">' + icon('spark') + '</span><p>ChatGPT gives you a plan and forgets you. OnRamp gives you the next step, a real room to walk into this week, and a nudge when it’s time.</p></div>' +
-          '<button class="btn btn-primary btn-lg" id="cta-start">Get my plan <span class="ar">' + icon('arrow') + '</span></button>' +
+          '<p class="hero-sub">One course to start tonight, two or three real rooms this month, and a plan that fits your week.</p>' +
+          '<form class="search-bar" id="landing-search" role="search">' +
+            '<span class="search-ic" aria-hidden="true">' + icon('search') + '</span>' +
+            '<input id="landing-q" type="search" autocomplete="off" enterkeyhint="search" placeholder="Search courses, meetups, hackathons…" aria-label="Search courses and events" />' +
+            '<button class="search-go" type="submit" aria-label="Search the catalog">' + icon('arrow') + '</button>' +
+          '</form>' +
+          '<div class="focus-row" role="group" aria-label="Filter by what you’re looking for">' + focusChips() + '</div>' +
+          '<div class="hero-cta">' +
+            '<button class="btn btn-primary btn-lg" id="cta-start" type="button">Get my plan <span class="ar">' + icon('arrow') + '</span></button>' +
+            '<button class="btn btn-secondary btn-lg" id="cta-browse" type="button">' + icon('grid') + '<span id="browse-count-btn">Browse all ' + focusCount('all') + '</span></button>' +
+          '</div>' +
           '<p class="footnote">Free · No account · 2 minutes</p>' +
+          '<p class="anti-line"><span class="anti-ic" aria-hidden="true">' + icon('spark') + '</span>ChatGPT hands you a plan and forgets you. OnRamp gives you the next step and a real room to walk into.</p>' +
         '</div>' +
         '<div class="how">' +
           '<div class="how-title">How it works</div>' +
@@ -323,6 +368,148 @@
       '</section>'
     );
     document.getElementById('cta-start').addEventListener('click', startIntake);
+    document.getElementById('cta-browse').addEventListener('click', function () { state.browseQuery = ''; renderBrowse(); });
+    document.getElementById('landing-search').addEventListener('submit', function (e) {
+      e.preventDefault();
+      state.browseQuery = document.getElementById('landing-q').value.trim();
+      renderBrowse();
+    });
+    wireFocusChips(app.querySelector('.focus-row'), updateLandingBrowseBtn);
+  }
+
+  function updateLandingBrowseBtn() {
+    var el = document.getElementById('browse-count-btn');
+    if (!el) return;
+    var f = state.focus, n = focusCount(f);
+    el.textContent = f === 'all' ? ('Browse all ' + n) : ('Browse ' + n + ' ' + focusLabel(f).toLowerCase());
+  }
+
+  /* Shared: wire a segmented focus-chip row. onChange fires after state.focus updates. */
+  function wireFocusChips(container, onChange) {
+    if (!container) return;
+    var chips = container.querySelectorAll('.focus-chip');
+    Array.prototype.forEach.call(chips, function (btn) {
+      btn.addEventListener('click', function () {
+        state.focus = btn.getAttribute('data-focus');
+        Array.prototype.forEach.call(chips, function (b) {
+          var on = b === btn;
+          b.classList.toggle('selected', on);
+          b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+        if (onChange) onChange();
+      });
+    });
+  }
+
+  function debounce(fn, ms) {
+    var t;
+    return function () { var a = arguments, c = this; clearTimeout(t); t = setTimeout(function () { fn.apply(c, a); }, ms); };
+  }
+
+  /* =====================================================================
+   * BROWSE / EXPLORE — searchable, filterable catalog. No intake required.
+   * ===================================================================== */
+  function browseResults() {
+    var f = state.focus;
+    var q = (state.browseQuery || '').trim().toLowerCase();
+    var rows = [];
+    if (f === 'all' || f === 'course') {
+      getCourses().forEach(function (c) { rows.push({ type: 'course', item: c }); });
+    }
+    if (f !== 'course') {
+      getEvents().forEach(function (e) {
+        if (f === 'all' || e.kind === f) rows.push({ type: 'event', item: e });
+      });
+    }
+    if (q) rows = rows.filter(function (r) { return rowText(r).indexOf(q) !== -1; });
+    return rows;
+  }
+  function rowText(r) {
+    var it = r.item;
+    var parts = r.type === 'course'
+      ? [it.title, it.provider, 'course', (it.topics || []).join(' ')]
+      : [it.title, it.org, kindLabel(it.kind), it.kind, it.city, it.prepTopic];
+    return parts.join(' ').toLowerCase();
+  }
+
+  function courseRow(c, i) {
+    return '<li class="row-card" style="--d:' + Math.min(i * 40, 320) + 'ms">' +
+      '<div class="row-main">' +
+        '<div class="row-head"><span class="row-kind kind-course">Course</span>' + costBadge(c.cost) + '</div>' +
+        '<h3 class="row-title">' + esc(c.title) + '</h3>' +
+        '<div class="provider">' + esc(c.provider) + '</div>' +
+        '<div class="chips"><span class="chip">' + icon('clock') + esc(c.durationLabel) + '</span><span class="chip">' + esc(c.format) + '</span></div>' +
+      '</div>' +
+      '<a class="btn btn-secondary row-go" href="' + esc(c.url) + '" target="_blank" rel="noopener">View <span class="ar">' + icon('arrow') + '</span></a>' +
+    '</li>';
+  }
+  function eventRow(e, i) {
+    var modeChip = e.mode === 'online'
+      ? '<span class="chip">' + icon('globe') + 'Online</span>'
+      : '<span class="chip">' + icon('pin') + esc((e.mode === 'hybrid' ? 'Hybrid · ' : '') + (e.city || 'In-person')) + '</span>';
+    return '<li class="row-card" style="--d:' + Math.min(i * 40, 320) + 'ms">' +
+      '<div class="row-main">' +
+        '<div class="row-head"><span class="row-kind kind-' + esc(e.kind) + '">' + esc(kindLabel(e.kind)) + '</span>' +
+          (e.dateLabel ? '<span class="date-pill">' + icon('calendar') + esc(e.dateLabel) + '</span>' : '') +
+          (e.free ? '<span class="badge badge-free">Free</span>' : '') +
+        '</div>' +
+        '<h3 class="row-title">' + esc(e.title) + '</h3>' +
+        '<div class="provider">' + esc(e.org) + '</div>' +
+        '<div class="chips">' + modeChip +
+          (e.beginnerSafe ? '<span class="chip chip-safe">' + icon('shield') + 'Beginner-safe</span>' : '') +
+        '</div>' +
+      '</div>' +
+      '<a class="btn btn-secondary row-go" href="' + esc(e.url) + '" target="_blank" rel="noopener">View <span class="ar">' + icon('arrow') + '</span></a>' +
+    '</li>';
+  }
+
+  function renderBrowse() {
+    state.screen = 'browse';
+    render(
+      '<section class="browse">' +
+        '<div class="browse-top">' +
+          '<button class="btn-ghost back" id="browse-back" type="button" aria-label="Back to start">' + icon('back') + '<span>Home</span></button>' +
+          '<button class="btn btn-primary browse-plan" id="browse-plan" type="button">' + icon('spark') + 'Get my plan</button>' +
+        '</div>' +
+        '<h2 class="browse-title">Browse everything</h2>' +
+        '<p class="browse-sub">Every course and real room in one place. Search, filter, then let us build your plan.</p>' +
+        '<form class="search-bar" id="browse-search" role="search">' +
+          '<span class="search-ic" aria-hidden="true">' + icon('search') + '</span>' +
+          '<input id="browse-q" type="search" autocomplete="off" enterkeyhint="search" placeholder="Search by title, topic, or city…" aria-label="Search courses and events" value="' + esc(state.browseQuery || '') + '" />' +
+        '</form>' +
+        '<div class="focus-row browse-focus" role="group" aria-label="Filter by type">' + focusChips() + '</div>' +
+        '<p class="browse-count" id="browse-count-line" role="status" aria-live="polite"></p>' +
+        '<ul class="browse-list" id="browse-list"></ul>' +
+      '</section>',
+      { focus: '#browse-q' }
+    );
+    document.getElementById('browse-back').addEventListener('click', renderLanding);
+    document.getElementById('browse-plan').addEventListener('click', startIntake);
+    var q = document.getElementById('browse-q');
+    var onQuery = debounce(function () { state.browseQuery = q.value.trim(); renderBrowseList(); }, 180);
+    q.addEventListener('input', onQuery);
+    document.getElementById('browse-search').addEventListener('submit', function (e) { e.preventDefault(); state.browseQuery = q.value.trim(); renderBrowseList(); });
+    wireFocusChips(app.querySelector('.browse-focus'), renderBrowseList);
+    renderBrowseList();
+  }
+
+  function renderBrowseList() {
+    var list = document.getElementById('browse-list');
+    var countLine = document.getElementById('browse-count-line');
+    if (!list) return;
+    var rows = browseResults();
+    if (countLine) countLine.textContent = rows.length + (rows.length === 1 ? ' result' : ' results');
+    if (!rows.length) {
+      list.innerHTML = '<li class="browse-empty">' + icon('compass') +
+        '<p>Nothing matches yet. Try another word, or clear the filter.</p>' +
+        '<button class="btn btn-secondary" id="browse-reset" type="button">Reset filters</button></li>';
+      var r = document.getElementById('browse-reset');
+      if (r) r.addEventListener('click', function () { state.focus = 'all'; state.browseQuery = ''; renderBrowse(); });
+      return;
+    }
+    list.innerHTML = rows.map(function (r, i) {
+      return r.type === 'course' ? courseRow(r.item, i) : eventRow(r.item, i);
+    }).join('');
   }
 
   function heroDecor() {
@@ -466,8 +653,18 @@
   /* =====================================================================
    * PLAN
    * ===================================================================== */
+  // Honor the landing filter: bias the plan's rooms toward the chosen kind,
+  // but never starve it (buildPlan needs >=2) — fall back to the full set.
+  function focusedEventsForPlan() {
+    var all = getEvents();
+    var f = state.focus;
+    if (f === 'all' || f === 'course') return all;
+    var sub = all.filter(function (e) { return e.kind === f; });
+    return sub.length >= 2 ? sub : all;
+  }
+
   function buildAndShowPlan() {
-    state.plan = window.buildPlan(state.answers, getCourses(), getEvents());
+    state.plan = window.buildPlan(state.answers, getCourses(), focusedEventsForPlan());
     writeHash(state.answers);
     renderPlan();
   }
