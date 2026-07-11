@@ -533,6 +533,7 @@
     render(
       '<section class="landing">' +
         heroDecor() +
+        '<div class="landing-inner">' +
         '<div class="hero">' +
           '<div class="brand"><span class="brand-mark">' + icon('compass', 'brand-ic') + '</span><span class="brand-name">OnRamp</span></div>' +
           '<h1 class="hero-title">Stop doomscrolling AI.<br><span class="grad">One course, real rooms, one plan.</span></h1>' +
@@ -557,6 +558,7 @@
             '<li class="how-step"><span class="how-n">2</span><span class="how-ic">' + icon('spark') + '</span><div><strong>Get 1 course + real rooms</strong><span>One next step, not a catalog.</span></div></li>' +
             '<li class="how-step"><span class="how-n">3</span><span class="how-ic">' + icon('people') + '</span><div><strong>Show up</strong><span>Momentum beats motivation.</span></div></li>' +
           '</ol>' +
+        '</div>' +
         '</div>' +
       '</section>'
     );

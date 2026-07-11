@@ -27,8 +27,9 @@ Use for padding, margin, and gap on structural elements.
 | Token | Value | Applies to |
 |-------|-------|------------|
 | `--container-narrow` | 480px | `.intake`, `.plan` (mobile/tablet) |
-| `--container-wide` | 720px | `.landing` |
+| `--container-wide` | 720px | `.landing-inner` (mobile/tablet) |
 | `--container-max` | 1120px | `.plan` at ≥1024px |
+| `--container-xl` | 1520px | `.landing-inner` at ≥1024px (full-bleed hero) |
 
 ### Fluid type scale (`clamp`, min @375 → max @1440+)
 | Token | Range | Use |
@@ -64,7 +65,7 @@ Mobile-first. Three breakpoints matter:
 
 - **375px (base):** single focused column. Containers use `--container-narrow` / `--container-wide`. Gutters `--space-5`.
 - **768px (tablet):** gutters widen to `--space-6`. `.how-steps` becomes 3 columns (from 620px). Layout otherwise unchanged.
-- **1024px (laptop) and up:** `.plan` expands to `--container-max` (1120px) and its event cards (`.spine-events`) become a **2-column top-aligned grid**. Landing stays 720px (marketing column reads best narrow). **Intake stays `--container-narrow` on purpose** — one question at a time is a focus decision, not an oversight.
+- **1024px (laptop) and up:** `.plan` expands to `--container-max` (1120px) and its event cards (`.spine-events`) become a **2-column top-aligned grid**. The landing becomes a **full-height two-zone hero**: `.landing` fills `100dvh` and bleeds full-width (background to both viewport edges), while `.landing-inner` bounds content to `--container-xl` (1520px), centered, as a `1.12fr / .88fr` grid (hero left, "how it works" right). **Intake stays `--container-narrow` on purpose** — one question at a time is a focus decision, not an oversight.
 
 ---
 
