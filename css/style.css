@@ -19,6 +19,10 @@
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --shadow-card: 0 1px 1px rgba(255,255,255,.06) inset, 0 20px 40px -24px rgba(0,0,0,.6);
   --glow-mint: 0 0 24px rgba(122,226,207,.25);
+  /* named easings — no default `ease`, no bounce on UI state changes */
+  --ease-out: cubic-bezier(.22, 1, .36, 1);        /* enter/exit, position — strong ease-out */
+  --ease-in-out: cubic-bezier(.77, 0, .175, 1);    /* on-screen movement */
+  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);  /* select confirmation only */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -53,12 +57,12 @@ input { font: inherit; }
 }
 .landing { max-width: 720px; }
 
-/* screen transition */
+/* screen transition — the single orchestrator; cards cascade *within* this */
 @keyframes screenIn {
-  from { opacity: 0; transform: translateY(14px); }
-  to   { opacity: 1; transform: none; }
+  from { opacity: 0; transform: translateY(16px); filter: blur(6px); }
+  to   { opacity: 1; transform: none;             filter: blur(0); }
 }
-.screen-enter > section, section.landing, section.intake, section.plan { animation: screenIn .45s cubic-bezier(.22,1,.36,1) both; }
+.screen-enter > section, section.landing, section.intake, section.plan { animation: screenIn .5s var(--ease-out) both; }
 
 /* ============ buttons ============ */
 .btn {
@@ -67,10 +71,11 @@ input { font: inherit; }
   border-radius: 999px;
   font-weight: 650; font-size: 1rem;
   text-decoration: none;
-  transition: transform .15s ease, box-shadow .2s ease, background .2s ease, color .2s ease;
+  transition: transform .15s var(--ease-out), box-shadow .2s ease, background .2s ease, color .2s ease;
   -webkit-tap-highlight-color: transparent;
 }
 .btn:active { transform: scale(.97); }
+.btn-primary:active { transform: scale(.97) translateY(1px); }
 .btn-primary {
   background: linear-gradient(135deg, var(--mint), var(--teal));
   color: #04231D;
@@ -100,24 +105,56 @@ input { font: inherit; }
 }
 
 /* ============ landing ============ */
-.hero-glow {
-  position: absolute; top: -8rem; left: 50%; transform: translateX(-50%);
-  width: 34rem; height: 34rem; border-radius: 50%;
-  background: radial-gradient(circle, rgba(27,140,119,.35), transparent 65%);
-  filter: blur(40px);
-  pointer-events: none;
-  z-index: 0;
+/* Signature background: a 3D perspective "on-ramp" — a road/horizon receding
+ * to a mint vanishing point, with fine grain. Parallax on pointer (JS sets
+ * --px/--py). Transform/opacity only; the grid is a *static* 3D backdrop so it
+ * survives reduced-motion (only the horizon breathe + grain are motion). */
+.ramp {
+  position: absolute; inset: 0 0 auto; height: 460px; width: 100%;
+  pointer-events: none; z-index: 0; overflow: hidden;
+  --px: 0; --py: 0;
+  -webkit-mask-image: linear-gradient(to bottom, #000 62%, transparent);
+  mask-image: linear-gradient(to bottom, #000 62%, transparent);
 }
-.hero-decor {
-  position: absolute; inset: 0 0 auto; height: 320px; width: 100%;
-  pointer-events: none; z-index: 0; opacity: .8;
+/* horizon glow at the vanishing point — replaces the old blurred orb */
+.ramp-sky {
+  position: absolute; top: 30%; left: 50%;
+  width: 40rem; height: 26rem;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(122,226,207,.30), rgba(27,140,119,.10) 45%, transparent 70%);
+  filter: blur(18px);
+  transform: translate3d(calc(-50% + var(--px) * -22px), calc(var(--py) * -12px), 0);
+  animation: horizonBreathe 6s var(--ease-in-out) infinite;
 }
-@keyframes drift {
-  0%, 100% { transform: translate(0,0); }
-  50% { transform: translate(0,-12px); }
+@keyframes horizonBreathe {
+  0%, 100% { opacity: .7; }
+  50%      { opacity: 1; }
 }
-.orb-a { animation: drift 7s ease-in-out infinite; }
-.orb-b { animation: drift 9s ease-in-out infinite reverse; }
+/* the receding floor grid — the on-ramp itself */
+.ramp-floor {
+  position: absolute; left: 50%; bottom: 0;
+  width: 200%; height: 340px;
+  transform: translateX(-50%);
+  perspective: 340px;
+  perspective-origin: 50% 0%;
+}
+.ramp-grid {
+  position: absolute; inset: -60% 0 0;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 47px, rgba(122,226,207,.16) 47px 48px),
+    repeating-linear-gradient(0deg,  transparent 0 47px, rgba(122,226,207,.13) 47px 48px);
+  transform-origin: 50% 100%;
+  transform: translate3d(calc(var(--px) * 16px), 0, 0) rotateX(74deg) rotateY(calc(var(--px) * 2deg));
+  transition: transform .4s var(--ease-out);
+  -webkit-mask-image: radial-gradient(120% 78% at 50% 100%, #000 34%, transparent 76%);
+  mask-image: radial-gradient(120% 78% at 50% 100%, #000 34%, transparent 76%);
+}
+.ramp-sky, .ramp-floor { transition: transform .4s var(--ease-out); }
+/* fine grain — SVG turbulence, no external asset */
+.ramp-grain {
+  position: absolute; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: .05; mix-blend-mode: overlay;
+}
 
 .hero { position: relative; z-index: 1; padding-top: 3.5rem; text-align: center; }
 .brand { display: inline-flex; align-items: center; gap: .55rem; margin-bottom: 2.2rem; }
@@ -204,10 +241,22 @@ input { font: inherit; }
   overflow: hidden;
 }
 .progress-fill {
+  position: relative; overflow: hidden;
   height: 100%; border-radius: 999px;
   background: linear-gradient(90deg, var(--teal), var(--mint));
   box-shadow: 0 0 10px rgba(122,226,207,.5);
-  transition: width .55s cubic-bezier(.22,1,.36,1);
+  transition: width .55s var(--ease-out);
+}
+/* glow that travels along the fill */
+.progress-fill::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent);
+  transform: translateX(-100%);
+  animation: progressSheen 2.4s var(--ease-in-out) infinite;
+}
+@keyframes progressSheen {
+  0%       { transform: translateX(-100%); }
+  55%, 100%{ transform: translateX(240%); }
 }
 
 .q-title { font-size: 1.55rem; letter-spacing: -.02em; line-height: 1.2; margin-bottom: .4rem; }
@@ -216,9 +265,11 @@ input { font: inherit; }
 
 .options, .loc { display: flex; flex-direction: column; gap: .75rem; }
 
+/* cascade entrance — opacity + gentle rise. fill:backwards so the resting
+ * transform (pointer tilt, driven by --rx/--ry/--tz) owns `transform` after. */
 @keyframes cardIn {
-  from { opacity: 0; transform: translateY(16px) scale(.98); }
-  to   { opacity: 1; transform: none; }
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 .option {
   display: flex; align-items: center; gap: .95rem; text-align: left;
@@ -228,13 +279,16 @@ input { font: inherit; }
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow-card);
-  transition: border-color .2s ease, background .2s ease, transform .15s ease, box-shadow .2s ease;
-  animation: cardIn .45s cubic-bezier(.22,1,.36,1) both;
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateZ(var(--tz, 0px));
+  transition: transform .2s var(--ease-out), border-color .2s ease, background .2s ease, box-shadow .25s ease;
+  animation: cardIn .45s var(--ease-out) backwards;
   animation-delay: var(--d, 0ms);
   -webkit-tap-highlight-color: transparent;
 }
-.option:hover { border-color: rgba(122,226,207,.55); transform: translateY(-2px); box-shadow: var(--shadow-card), var(--glow-mint); }
-.option:active { transform: scale(.985); }
+@media (hover: hover) and (pointer: fine) {
+  .option:hover { --tz: 8px; border-color: rgba(122,226,207,.55); box-shadow: var(--shadow-card), var(--glow-mint); }
+}
+.option:active { --tz: -2px; }
 .option.selected {
   border-color: var(--mint);
   background: linear-gradient(160deg, rgba(27,140,119,.22), var(--surface));
@@ -256,7 +310,7 @@ input { font: inherit; }
   width: 1.5rem; height: 1.5rem; border-radius: 50%;
   background: linear-gradient(135deg, var(--mint), var(--teal));
   opacity: 0; transform: scale(.5);
-  transition: opacity .2s ease, transform .25s cubic-bezier(.34,1.56,.64,1);
+  transition: opacity .2s ease, transform .25s var(--ease-spring);
 }
 .option-check .ic { width: 1rem; height: 1rem; }
 .option.selected .option-check { opacity: 1; transform: scale(1); }
@@ -269,7 +323,7 @@ input { font: inherit; }
   border: 1px solid var(--line);
   border-radius: var(--radius);
   transition: border-color .2s ease;
-  animation: cardIn .45s cubic-bezier(.22,1,.36,1) both;
+  animation: cardIn .45s var(--ease-out) backwards;
 }
 .loc-field:focus-within { border-color: var(--mint); box-shadow: var(--glow-mint); }
 .loc-field input {
@@ -280,7 +334,7 @@ input { font: inherit; }
   font-size: 1rem;
 }
 .loc-field input::placeholder { color: var(--muted); }
-.loc-go { margin-top: .6rem; animation: cardIn .45s .16s cubic-bezier(.22,1,.36,1) both; }
+.loc-go { margin-top: .6rem; animation: cardIn .45s .16s var(--ease-out) backwards; }
 
 /* ============ plan ============ */
 .plan { padding-top: 1rem; }
@@ -322,8 +376,14 @@ input { font: inherit; }
   border-radius: var(--radius);
   padding: 1.3rem 1.25rem;
   box-shadow: var(--shadow-card);
-  animation: cardIn .5s cubic-bezier(.22,1,.36,1) both;
+  transform: perspective(1100px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateZ(var(--tz, 0px));
+  transition: transform .25s var(--ease-out), border-color .2s ease, box-shadow .25s ease;
+  animation: cardIn .5s var(--ease-out) backwards;
   animation-delay: var(--d, 0ms);
+}
+/* pointer tilt + depth lift on the two actionable card types only */
+@media (hover: hover) and (pointer: fine) {
+  .course-card:hover, .event-card:hover { --tz: 5px; box-shadow: var(--shadow-card), var(--glow-mint); }
 }
 .course-card {
   background: linear-gradient(165deg, rgba(27,140,119,.16), var(--surface) 55%);
@@ -473,7 +533,7 @@ input { font: inherit; }
   padding: .8rem 1.3rem;
   font-size: .93rem; font-weight: 600;
   box-shadow: 0 10px 40px rgba(0,0,0,.55), var(--glow-mint);
-  transition: transform .4s cubic-bezier(.22,1,.36,1);
+  transition: transform .4s var(--ease-out);
   z-index: 100;
 }
 #toast.show { transform: translate(-50%, 0); }
