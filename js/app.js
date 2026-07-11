@@ -532,7 +532,6 @@
     state.screen = 'landing';
     render(
       '<section class="landing">' +
-        '<div class="hero-glow" aria-hidden="true"></div>' +
         heroDecor() +
         '<div class="hero">' +
           '<div class="brand"><span class="brand-mark">' + icon('compass', 'brand-ic') + '</span><span class="brand-name">OnRamp</span></div>' +
@@ -569,6 +568,7 @@
       renderBrowse();
     });
     wireFocusChips(app.querySelector('.focus-row'), updateLandingBrowseBtn);
+    wireParallax(app.querySelector('.landing'), app.querySelector('.ramp'));
   }
 
   function updateLandingBrowseBtn() {
@@ -706,20 +706,37 @@
     }).join('');
   }
 
+  // Signature background: layered 3D "on-ramp" — horizon glow, receding
+  // perspective grid (the road), and fine grain. Pure CSS depth; parallax added
+  // by wireParallax(). No SVG orbs, no constant drift.
   function heroDecor() {
-    return '<svg class="hero-decor" viewBox="0 0 400 300" aria-hidden="true" preserveAspectRatio="xMidYMid slice">' +
-      '<defs>' +
-        '<radialGradient id="hd1" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#7AE2CF" stop-opacity=".55"/><stop offset="1" stop-color="#7AE2CF" stop-opacity="0"/></radialGradient>' +
-        '<linearGradient id="hd2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7AE2CF"/><stop offset="1" stop-color="#1B8C77"/></linearGradient>' +
-      '</defs>' +
-      '<circle class="orb orb-a" cx="320" cy="70" r="70" fill="url(#hd1)"/>' +
-      '<circle class="orb orb-b" cx="70" cy="230" r="90" fill="url(#hd1)"/>' +
-      '<g class="constellation" stroke="url(#hd2)" stroke-width="1" opacity=".5" fill="none">' +
-        '<path d="M40 60 L120 40 L200 90 L300 50"/>' +
-        '<path d="M120 40 L140 120 L200 90"/>' +
-        '<circle cx="40" cy="60" r="3" fill="#7AE2CF"/><circle cx="120" cy="40" r="3" fill="#7AE2CF"/><circle cx="200" cy="90" r="3" fill="#7AE2CF"/><circle cx="300" cy="50" r="3" fill="#7AE2CF"/><circle cx="140" cy="120" r="3" fill="#7AE2CF"/>' +
-      '</g>' +
-    '</svg>';
+    return '<div class="ramp" aria-hidden="true">' +
+      '<div class="ramp-sky"></div>' +
+      '<div class="ramp-floor"><div class="ramp-grid"></div></div>' +
+      '<div class="ramp-grain"></div>' +
+    '</div>';
+  }
+
+  // Pointer parallax for the hero. One rAF-throttled listener on the landing
+  // section (GC'd on re-render). Desktop pointer only; off for reduced-motion.
+  function wireParallax(scope, ramp) {
+    if (!scope || !ramp || prefersReduced) return;
+    if (!(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches)) return;
+    var raf = 0, px = 0, py = 0;
+    scope.addEventListener('pointermove', function (e) {
+      var r = scope.getBoundingClientRect();
+      px = (e.clientX - r.left) / r.width - 0.5;
+      py = (e.clientY - r.top) / r.height - 0.5;
+      if (!raf) raf = requestAnimationFrame(function () {
+        raf = 0;
+        ramp.style.setProperty('--px', px.toFixed(3));
+        ramp.style.setProperty('--py', py.toFixed(3));
+      });
+    });
+    scope.addEventListener('pointerleave', function () {
+      ramp.style.setProperty('--px', '0');
+      ramp.style.setProperty('--py', '0');
+    });
   }
 
   /* =====================================================================
@@ -1143,11 +1160,43 @@
   }
 
   /* =====================================================================
+   * 3D TILT — restrained pointer-follow perspective on cards/options.
+   * One delegated listener on #app (persists across renders). Desktop pointer
+   * only; disabled for reduced-motion. Writes --rx/--ry the CSS transform reads.
+   * ===================================================================== */
+  var TILT_SEL = '.option, .course-card, .event-card';
+  var TILT_MAX = 4; // degrees — restrained
+  var tiltEl = null, tiltRaf = 0, tiltCX = 0, tiltCY = 0;
+  function clearTilt(el) { if (el) { el.style.removeProperty('--rx'); el.style.removeProperty('--ry'); } }
+  function applyTilt() {
+    tiltRaf = 0;
+    var el = tiltEl; if (!el) return;
+    var r = el.getBoundingClientRect();
+    var dx = (tiltCX - r.left) / r.width - 0.5;
+    var dy = (tiltCY - r.top) / r.height - 0.5;
+    el.style.setProperty('--ry', (dx * TILT_MAX).toFixed(2) + 'deg');
+    el.style.setProperty('--rx', (-dy * TILT_MAX).toFixed(2) + 'deg');
+  }
+  function wireTilt() {
+    if (prefersReduced) return;
+    if (!(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches)) return;
+    app.addEventListener('pointermove', function (e) {
+      var el = e.target.closest ? e.target.closest(TILT_SEL) : null;
+      if (el !== tiltEl) { clearTilt(tiltEl); tiltEl = el; }
+      if (!el) return;
+      tiltCX = e.clientX; tiltCY = e.clientY;
+      if (!tiltRaf) tiltRaf = requestAnimationFrame(applyTilt);
+    });
+    app.addEventListener('pointerleave', function () { clearTilt(tiltEl); tiltEl = null; });
+  }
+
+  /* =====================================================================
    * BOOT
    * ===================================================================== */
   function boot() {
     app = document.getElementById('app');
     if (!app) return; // loaded outside the app (e.g. test page) — expose samples only
+    wireTilt();
     var shared = readHash();
     if (shared) {
       state.answers = shared;
