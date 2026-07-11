@@ -217,135 +217,11 @@
   }
 
   /* =====================================================================
-   * GENERATIVE COVER ART — deterministic inline SVG banners (no external
-   * images). Seeded by id hash so every card is distinct but stable across
-   * reloads; motif + hue chosen per event kind / course topic. Layered
-   * gradient mesh + feTurbulence grain + geometric motif, dark+mint family.
+   * GENERATIVE COVER ART — delegated to OnRampVisuals.coverArt (cover-art-v2).
+   * The card-cover wrapper is kept; its CSS frames the banner.
    * ===================================================================== */
-  var _caid = 0;
-  function hashStr(s) {
-    var h = 2166136261 >>> 0; s = String(s == null ? '' : s);
-    for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
-    return h >>> 0;
-  }
-  function rngFrom(seed) {
-    var a = seed >>> 0;
-    return function () {
-      a = a + 0x6D2B79F5 | 0;
-      var t = Math.imul(a ^ a >>> 15, 1 | a);
-      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-      return ((t ^ t >>> 14) >>> 0) / 4294967296;
-    };
-  }
-  // kind/topic -> { motif shape, accent hue }. Event kinds get the look asked
-  // for (hackathon=angular, meetup=circles, workshop=grid, talk=waveform,
-  // study-group=pages); course topics reuse the shape kit at their own hue.
-  var COVER_MAP = {
-    hackathon: { shape: 'shards', hue: 20 },
-    meetup: { shape: 'orbs', hue: 44 },
-    workshop: { shape: 'grid', hue: 168 },
-    talk: { shape: 'wave', hue: 192 },
-    'study-group': { shape: 'pages', hue: 158 },
-    fundamentals: { shape: 'orbs', hue: 165 },
-    ml: { shape: 'wave', hue: 178 },
-    python: { shape: 'grid', hue: 150 },
-    prompting: { shape: 'spark', hue: 46 },
-    'llm-apps': { shape: 'shards', hue: 186 },
-    agents: { shape: 'spark', hue: 200 },
-    career: { shape: 'pages', hue: 34 }
-  };
-  function n0(x) { return Math.round(x); }
-  var MOTIF = {
-    shards: function (r, acc, mint) { // angular, energetic
-      var s = '';
-      for (var i = 0; i < 6; i++) {
-        var x = r() * 440 - 20, y = r() * 240 - 20, z = 46 + r() * 120;
-        s += '<polygon points="' + n0(x) + ',' + n0(y) + ' ' + n0(x + z) + ',' + n0(y + z * 0.34) +
-          ' ' + n0(x + z * 0.42) + ',' + n0(y + z) + '" fill="' + (i % 2 ? acc : mint) +
-          '" opacity="' + (0.12 + r() * 0.34).toFixed(2) + '"/>';
-      }
-      return s;
-    },
-    orbs: function (r, acc, mint) { // warm overlapping circles / people
-      var s = '';
-      for (var i = 0; i < 8; i++) {
-        var x = n0(r() * 400), y = n0(r() * 200), rad = n0(12 + r() * 58), col = i % 3 ? mint : acc;
-        s += r() < 0.45
-          ? '<circle cx="' + x + '" cy="' + y + '" r="' + rad + '" fill="' + col + '" opacity="' + (0.08 + r() * 0.22).toFixed(2) + '"/>'
-          : '<circle cx="' + x + '" cy="' + y + '" r="' + rad + '" fill="none" stroke="' + col + '" stroke-width="' + (1 + r() * 2).toFixed(1) + '" opacity="' + (0.14 + r() * 0.3).toFixed(2) + '"/>';
-      }
-      return s;
-    },
-    grid: function (r, acc, mint) { // workshop / tools
-      var s = '', cols = 8, rows = 4, cw = 400 / cols, ch = 200 / rows, pad = cw * 0.2;
-      for (var gy = 0; gy < rows; gy++) for (var gx = 0; gx < cols; gx++) {
-        if (r() < 0.42) s += '<rect x="' + n0(gx * cw + pad) + '" y="' + n0(gy * ch + pad) +
-          '" width="' + n0(cw - 2 * pad) + '" height="' + n0(ch - 2 * pad) + '" rx="3" fill="' +
-          (r() < 0.3 ? acc : mint) + '" opacity="' + (0.08 + r() * 0.4).toFixed(2) + '"/>';
-      }
-      return s;
-    },
-    wave: function (r, acc, mint) { // talk / waveform
-      var s = '';
-      for (var line = 0; line < 3; line++) {
-        var yb = 55 + line * 46 + r() * 18, amp = 12 + r() * 26, ph = r() * 6, d = 'M-10 ' + n0(yb);
-        for (var x = 0; x <= 410; x += 18) d += ' L' + x + ' ' + n0(yb + Math.sin(x / 38 + ph) * amp);
-        s += '<path d="' + d + '" fill="none" stroke="' + (line === 1 ? acc : mint) +
-          '" stroke-width="2" opacity="' + (0.22 + r() * 0.28).toFixed(2) + '"/>';
-      }
-      return s;
-    },
-    pages: function (r, acc, mint) { // study-group / book pages
-      var s = '';
-      for (var i = 0; i < 5; i++) {
-        var x = 44 + i * 24 + r() * 8, skew = r() * 12 - 6;
-        s += '<rect x="' + n0(x) + '" y="42" width="150" height="118" rx="7" fill="' + (i % 2 ? acc : mint) +
-          '" opacity="' + (0.1 + i * 0.06).toFixed(2) + '" transform="rotate(' + skew.toFixed(1) + ' ' + n0(x + 75) + ' 100)"/>';
-      }
-      return s;
-    },
-    spark: function (r, acc, mint) { // prompting / burst
-      var cx = 110 + r() * 180, cy = 55 + r() * 90, s = '', rays = 11;
-      for (var i = 0; i < rays; i++) {
-        var ang = (i / rays) * Math.PI * 2 + r() * 0.3, len = 28 + r() * 74;
-        s += '<line x1="' + n0(cx) + '" y1="' + n0(cy) + '" x2="' + n0(cx + Math.cos(ang) * len) +
-          '" y2="' + n0(cy + Math.sin(ang) * len) + '" stroke="' + (i % 2 ? acc : mint) +
-          '" stroke-width="2" stroke-linecap="round" opacity="' + (0.2 + r() * 0.34).toFixed(2) + '"/>';
-      }
-      return s + '<circle cx="' + n0(cx) + '" cy="' + n0(cy) + '" r="6" fill="' + mint + '"/>';
-    }
-  };
-  // seed = stable id; motifKey = event.kind or course topic. Returns a full SVG.
-  function coverArt(seed, motifKey) {
-    var conf = COVER_MAP[motifKey] || COVER_MAP.meetup;
-    var r = rngFrom(hashStr(seed + '|' + motifKey));
-    var id = 'ca' + (++_caid);
-    var acc = 'hsl(' + conf.hue + ',72%,64%)';
-    var mint = '#7AE2CF';
-    var b1x = n0(12 + r() * 32), b1y = n0(8 + r() * 40);
-    var b2x = n0(55 + r() * 40), b2y = n0(42 + r() * 52);
-    var rot = (r() * 18 - 9).toFixed(1);
-    var motif = MOTIF[conf.shape] || MOTIF.orbs;
-    return '<svg class="cover-art" viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice" role="img" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">' +
-      '<defs>' +
-        '<radialGradient id="' + id + 'a" cx="' + b1x + '%" cy="' + b1y + '%" r="75%"><stop offset="0" stop-color="' + acc + '" stop-opacity=".85"/><stop offset="1" stop-color="' + acc + '" stop-opacity="0"/></radialGradient>' +
-        '<radialGradient id="' + id + 'b" cx="' + b2x + '%" cy="' + b2y + '%" r="70%"><stop offset="0" stop-color="' + mint + '" stop-opacity=".55"/><stop offset="1" stop-color="' + mint + '" stop-opacity="0"/></radialGradient>' +
-        '<linearGradient id="' + id + 'base" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0a1a20"/><stop offset="1" stop-color="#05121a"/></linearGradient>' +
-        '<linearGradient id="' + id + 'fade" x1="0" y1="0" x2="0" y2="1"><stop offset=".5" stop-color="#0a1720" stop-opacity="0"/><stop offset="1" stop-color="#151F25" stop-opacity=".92"/></linearGradient>' +
-        '<filter id="' + id + 'n" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch" result="t"/><feColorMatrix in="t" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .6 0"/></filter>' +
-      '</defs>' +
-      '<rect width="400" height="200" fill="url(#' + id + 'base)"/>' +
-      '<g transform="rotate(' + rot + ' 200 100)">' +
-        '<rect x="-40" y="-40" width="480" height="280" fill="url(#' + id + 'a)"/>' +
-        '<rect x="-40" y="-40" width="480" height="280" fill="url(#' + id + 'b)"/>' +
-        motif(r, acc, mint) +
-      '</g>' +
-      '<rect width="400" height="200" filter="url(#' + id + 'n)" opacity=".05"/>' +
-      '<rect width="400" height="200" fill="url(#' + id + 'fade)"/>' +
-    '</svg>';
-  }
-  function coverHead(seed, motifKey) {
-    return '<div class="card-cover">' + coverArt(seed, motifKey) + '</div>';
+  function coverHead(seed, kind, opts) {
+    return '<div class="card-cover">' + window.OnRampVisuals.coverArt(seed, kind, opts) + '</div>';
   }
 
   /* =====================================================================
@@ -474,6 +350,7 @@
   };
 
   var app;
+  var heroHandle = null; // OnRampVisuals.heroField() handle; destroyed on any re-render
   var prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -483,6 +360,8 @@
    * ===================================================================== */
   function render(html, opts) {
     opts = opts || {};
+    // tear down the hero field (if any) before it's wiped from the DOM
+    if (heroHandle) { heroHandle.destroy(); heroHandle = null; }
     app.innerHTML = html;
     app.classList.remove('screen-enter');
     // force reflow to restart animation
@@ -536,7 +415,7 @@
         '<div class="landing-inner">' +
         '<div class="hero">' +
           '<div class="brand"><span class="brand-mark">' + icon('compass', 'brand-ic') + '</span><span class="brand-name">OnRamp</span></div>' +
-          '<h1 class="hero-title">Stop doomscrolling AI.<br><span class="grad">One course, real rooms, one plan.</span></h1>' +
+          '<h1 class="hero-title"><span class="grad-text">Stop doomscrolling AI.</span><br><span class="grad-text grad-text--mint">One course, real rooms, one plan.</span></h1>' +
           '<p class="hero-sub">A course to start tonight, real rooms this month, sized to the week you actually have.</p>' +
           '<form class="search-bar" id="landing-search" role="search">' +
             '<span class="search-ic" aria-hidden="true">' + icon('search') + '</span>' +
@@ -554,10 +433,14 @@
         '<div class="how">' +
           '<div class="how-title">How it works</div>' +
           '<ol class="how-steps">' +
-            '<li class="how-step"><span class="how-n">1</span><span class="how-ic">' + icon('compass') + '</span><div><strong>Answer 5 taps</strong><span>Level, goal, time, and the real why.</span></div></li>' +
-            '<li class="how-step"><span class="how-n">2</span><span class="how-ic">' + icon('spark') + '</span><div><strong>Get 1 course + real rooms</strong><span>One next step, not a catalog.</span></div></li>' +
-            '<li class="how-step"><span class="how-n">3</span><span class="how-ic">' + icon('people') + '</span><div><strong>Show up</strong><span>Momentum beats motivation.</span></div></li>' +
+            '<li class="how-step rim-card"><span class="how-n">1</span><span class="how-ic">' + icon('compass') + '</span><div><strong>Answer 5 taps</strong><span>Level, goal, time, and the real why.</span></div></li>' +
+            '<li class="how-step rim-card"><span class="how-n">2</span><span class="how-ic">' + icon('spark') + '</span><div><strong>Get 1 course + real rooms</strong><span>One next step, not a catalog.</span></div></li>' +
+            '<li class="how-step rim-card"><span class="how-n">3</span><span class="how-ic">' + icon('people') + '</span><div><strong>Show up</strong><span>Momentum beats motivation.</span></div></li>' +
           '</ol>' +
+        '</div>' +
+        '<div class="how landing-faq-block">' +
+          '<div class="how-title">Questions</div>' +
+          '<div class="landing-faq"></div>' +
         '</div>' +
         '</div>' +
       '</section>'
@@ -570,8 +453,27 @@
       renderBrowse();
     });
     wireFocusChips(app.querySelector('.focus-row'), updateLandingBrowseBtn);
-    wireParallax(app.querySelector('.landing'), app.querySelector('.ramp'));
+    var hf = app.querySelector('.hero-field');
+    if (hf) heroHandle = window.OnRampVisuals.heroField(hf, { lattice: 'left' });
+    // Single lit focal element: the masked-video orb, upper-right of the field.
+    var orbHost = app.querySelector('.hero-orb-host');
+    if (orbHost && window.OnRampVisuals.orb) orbHost.appendChild(window.OnRampVisuals.orb());
+    // Landing FAQ (ported accordion), first item open.
+    var faqHost = app.querySelector('.landing-faq');
+    if (faqHost && window.OnRampVisuals.faq) faqHost.appendChild(window.OnRampVisuals.faq(LANDING_FAQ));
   }
+
+  // Landing FAQ copy — product voice (PRODUCT.md): one next step, anti-catalog.
+  var LANDING_FAQ = [
+    { q: 'Is OnRamp free?',
+      a: 'Yes — free, no account, about two minutes. You answer five taps and walk away with a plan.' },
+    { q: 'Do I need to know how to code?',
+      a: 'No. OnRamp is built for people just breaking into AI: every plan starts with a beginner-safe course and rooms tagged for newcomers.' },
+    { q: 'How is this different from asking ChatGPT?',
+      a: 'ChatGPT hands you a plan and forgets you. OnRamp hands you one course to start tonight and a real room to walk into this month.' },
+    { q: 'What happens after I get my plan?',
+      a: 'You take the first step — start the course, sign up for one room. Email the plan to yourself so it’s waiting when you come back.' }
+  ];
 
   function updateLandingBrowseBtn() {
     var el = document.getElementById('browse-count-btn');
@@ -664,7 +566,7 @@
     render(
       '<section class="browse">' +
         '<div class="browse-top">' +
-          '<button class="btn-ghost back" id="browse-back" type="button" aria-label="Back to start">' + icon('back') + '<span>Home</span></button>' +
+          '<button class="btn-ghost btn-hairline back" id="browse-back" type="button" aria-label="Back to start">' + icon('back') + '<span>Home</span></button>' +
           '<button class="btn btn-primary browse-plan" id="browse-plan" type="button">' + icon('spark') + 'Get my plan</button>' +
         '</div>' +
         '<h2 class="browse-title">Browse everything</h2>' +
@@ -696,7 +598,7 @@
     var rows = browseResults();
     if (countLine) countLine.textContent = rows.length + (rows.length === 1 ? ' result' : ' results');
     if (!rows.length) {
-      list.innerHTML = '<li class="browse-empty">' + icon('compass') +
+      list.innerHTML = '<li class="browse-empty"><span class="onramp-constellation">' + window.OnRampVisuals.emptyState() + '</span>' +
         '<p>Nothing matches yet. Try another word, or clear the filter.</p>' +
         '<button class="btn btn-secondary" id="browse-reset" type="button">Reset filters</button></li>';
       var r = document.getElementById('browse-reset');
@@ -708,37 +610,15 @@
     }).join('');
   }
 
-  // Signature background: layered 3D "on-ramp" — horizon glow, receding
-  // perspective grid (the road), and fine grain. Pure CSS depth; parallax added
-  // by wireParallax(). No SVG orbs, no constant drift.
+  // Hero background mount point: an empty positioned child of .landing that
+  // OnRampVisuals.heroField() paints the generative "Signal field" into. The
+  // field manages its own pointer parallax, ambient drift, and teardown.
   function heroDecor() {
-    return '<div class="ramp" aria-hidden="true">' +
-      '<div class="ramp-sky"></div>' +
-      '<div class="ramp-floor"><div class="ramp-grid"></div></div>' +
-      '<div class="ramp-grain"></div>' +
-    '</div>';
-  }
-
-  // Pointer parallax for the hero. One rAF-throttled listener on the landing
-  // section (GC'd on re-render). Desktop pointer only; off for reduced-motion.
-  function wireParallax(scope, ramp) {
-    if (!scope || !ramp || prefersReduced) return;
-    if (!(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches)) return;
-    var raf = 0, px = 0, py = 0;
-    scope.addEventListener('pointermove', function (e) {
-      var r = scope.getBoundingClientRect();
-      px = (e.clientX - r.left) / r.width - 0.5;
-      py = (e.clientY - r.top) / r.height - 0.5;
-      if (!raf) raf = requestAnimationFrame(function () {
-        raf = 0;
-        ramp.style.setProperty('--px', px.toFixed(3));
-        ramp.style.setProperty('--py', py.toFixed(3));
-      });
-    });
-    scope.addEventListener('pointerleave', function () {
-      ramp.style.setProperty('--px', '0');
-      ramp.style.setProperty('--py', '0');
-    });
+    // hero-field = Signal decor; hero-orb host = the single lit "Orb" focal
+    // element in the upper-right. Both sit at the decor layer (placement +
+    // <768px hide live in css/orb.css's "orb placement" block).
+    return '<div class="hero-field" aria-hidden="true"></div>' +
+      '<div class="hero-orb-host" aria-hidden="true"></div>';
   }
 
   /* =====================================================================
@@ -753,7 +633,6 @@
   function renderStep() {
     var i = state.step;
     var s = STEPS[i];
-    var pct = Math.round(((i) / STEPS.length) * 100);
     var body;
     if (s.type === 'location') {
       body = renderLocationStep();
@@ -773,9 +652,9 @@
     render(
       '<section class="intake">' +
         '<div class="intake-top">' +
-          '<button class="btn-ghost back" id="back-btn" aria-label="Back">' + icon('back') + '</button>' +
+          '<button class="btn-ghost btn-hairline back" id="back-btn" aria-label="Back">' + icon('back') + '</button>' +
           '<div class="progress-wrap"><div class="progress-label">Question ' + (i + 1) + ' of ' + STEPS.length + '</div>' +
-            '<div class="progress-track"><div class="progress-fill" style="width:' + pct + '%"></div></div></div>' +
+            '<div class="onramp-rail">' + window.OnRampVisuals.progressRail(i, STEPS.length) + '</div></div>' +
         '</div>' +
         '<h2 class="q-title">' + s.title + '</h2>' +
         '<p class="q-sub">' + esc(s.sub) + '</p>' +
@@ -783,10 +662,6 @@
       '</section>',
       { focus: s.type === 'location' ? '#city-input' : '.option' }
     );
-
-    // animate progress fill to include current step once mounted
-    var fill = app.querySelector('.progress-fill');
-    if (fill) requestAnimationFrame(function () { fill.style.width = Math.round(((i + 1) / STEPS.length) * 100) + '%'; });
 
     document.getElementById('back-btn').addEventListener('click', goBack);
 
@@ -915,8 +790,8 @@
     var store = loadStore();
 
     var courseCard = c ? (
-      '<article class="card course-card has-cover" id="course-anchor" style="--d:120ms">' +
-        coverHead(c.id, (Array.isArray(c.topics) && c.topics[0]) || 'fundamentals') +
+      '<article class="card course-card has-cover" id="course-anchor" style="animation:none">' +
+        coverHead(c.id, 'course', { primary: true }) +
         '<div class="step-badge"><span class="step-num">1</span> Start this course</div>' +
         '<div class="card-head">' +
           '<div><h3 class="card-title">' + esc(c.title) + '</h3><div class="provider">' + esc(c.provider) + '</div></div>' +
@@ -935,7 +810,7 @@
       var modeChip = e.mode === 'online'
         ? '<span class="chip">' + icon('globe') + 'Online</span>'
         : '<span class="chip">' + icon('pin') + esc((e.mode === 'hybrid' ? 'Hybrid · ' : '') + (e.city || 'In-person')) + '</span>';
-      return '<article class="card event-card has-cover" style="--d:' + (200 + idx * 90) + 'ms">' +
+      return '<article class="card event-card has-cover" style="animation:none">' +
         coverHead(e.id, e.kind) +
         '<div class="event-top"><span class="date-pill">' + icon('calendar') + esc(e.dateLabel) + '</span>' + modeChip + '</div>' +
         '<h4 class="card-title sm">' + esc(e.title) + '</h4><div class="provider">' + esc(e.org) + '</div>' +
@@ -962,28 +837,40 @@
     render(
       '<section class="plan">' +
         '<div class="plan-head">' +
-          '<button class="btn-ghost back" id="remix" aria-label="Remix answers">' + icon('back') + '<span>Remix</span></button>' +
-          '<button class="btn-ghost share" id="share-btn">' + icon('share') + '<span>Share</span></button>' +
+          '<button class="btn-ghost btn-hairline back" id="remix" aria-label="Remix answers">' + icon('back') + '<span>Remix</span></button>' +
+          '<button class="btn-ghost btn-hairline share" id="share-btn">' + icon('share') + '<span>Share</span></button>' +
         '</div>' +
-        '<h2 class="plan-title">Your next step, <span class="grad">not a catalog</span></h2>' +
-        '<p class="plan-summary">' + esc(summaryLine(a)) + '</p>' +
+        '<h2 class="plan-title" data-reveal>Your next step, <span class="grad">not a catalog</span></h2>' +
+        '<p class="plan-summary" data-reveal>' + esc(summaryLine(a)) + '</p>' +
         '<div class="spine">' +
           courseCard +
           '<div class="spine-events"><div class="step-badge ghost"><span class="step-num">2</span> Show up to these rooms</div>' +
             (window.EVENTS_UPDATED ? '<p class="fresh-stamp">' + icon('spark') + 'Live events — refreshed ' + esc(freshLabel(window.EVENTS_UPDATED)) + '</p>' : '') +
             eventCards + '</div>' +
-          '<article class="card teaser" style="--d:' + (200 + p.events.length * 90 + 90) + 'ms"><div class="step-badge ghost"><span class="step-num">3</span> What’s next</div>' +
+          '<article class="card teaser rim-card" style="animation:none"><div class="step-badge ghost"><span class="step-num">3</span> What’s next</div>' +
             '<p class="teaser-txt">Finish Step 1, show up to one room, and the next rung gets obvious: a project, a deeper course, a community. Save the plan to your inbox for when you’re ready.</p></article>' +
         '</div>' +
-        '<div class="email-door card">' +
+        '<div class="email-door card rim-card" style="overflow:hidden">' +
+          '<div class="email-door-content" style="position:relative;z-index:var(--z-content)">' +
           '<div class="email-head">' + icon('mail') + '<div><strong>Email me my plan</strong><span>' + (emailEnabled() ? 'The full plan in your inbox, links and all.' : 'Saved on this device so it’s here when you come back.') + '</span></div></div>' +
           '<form class="email-form" id="email-form">' +
             '<input id="email-input" type="email" required placeholder="you@email.com" aria-label="Your email" />' +
             '<button class="btn btn-primary" id="email-send-btn" type="submit">Send it</button>' +
           '</form>' +
+          '</div>' +
         '</div>' +
       '</section>'
     );
+
+    // one-shot entrance choreography — owns the plan cards' transform/opacity
+    requestAnimationFrame(function () { window.OnRampVisuals.planReveal(app.querySelector('.plan')); });
+
+    // "Orb" wave: horizon band decor behind the email-door CTA (first child of
+    // the relative/overflow-hidden card; content already lifted to --z-content).
+    var emailDoor = app.querySelector('.email-door');
+    if (emailDoor && window.OnRampVisuals.horizonBand) {
+      emailDoor.insertBefore(window.OnRampVisuals.horizonBand(), emailDoor.firstChild);
+    }
 
     // wire
     document.getElementById('remix').addEventListener('click', remix);
