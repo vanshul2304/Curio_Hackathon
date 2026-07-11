@@ -1,0 +1,120 @@
+/* OnRamp — surface.css
+ * Opt-in surface treatments ported from the Next.js "Orb" reference.
+ * Every class here is additive: NOTHING restyles .card, .btn, or headings
+ * globally. Apply a class only where you want the treatment.
+ *
+ * Reference source map (react-ref/react/…):
+ *   .grad-text / .grad-text--mint  ← app/globals.css:86-95
+ *        (--background-image-radial-white-1/2 → bg-clip-text text-transparent,
+ *         e.g. templates/HomePage/Hero/index.tsx:18)
+ *   .rim-card + --shadow-rim-1/2/3 ← app/globals.css:101-106 (--shadow-1/2/3)
+ *   .btn-hairline                  ← components/Button/index.tsx
+ *        (isSecondary: after:border after:border-line … hover:after:border-white)
+ *
+ * Token rule: colors come from var(--…). The only literal colors are the
+ * white alpha ramps that ARE the ported dark-theme values; light-theme
+ * equivalents are derived from --accent-ink / --teal via color-mix.
+ */
+
+/* ── 1. Metallic radial gradient text ─────────────────────────────────────
+ * Ports --background-image-radial-white-1 (the hero big-title recipe) onto the
+ * serif display face. background-clip:text + transparent fill = printed-metal
+ * headline. Put .grad-text on a --font-display headline; add .grad-text--mint
+ * on the accent line (it only swaps the gradient stops, reusing the clip). */
+.grad-text {
+  background-image: radial-gradient(
+    67.66% 67.65% at 50.07% 32.35%,
+    #fff 0,
+    rgba(255, 255, 255, 0.5) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+/* light: radial text-ink → 65% text-ink. Fading printed ink — keeps the dark
+ * first line distinct from the teal accent line (all-teal killed hierarchy). */
+html[data-theme="light"] .grad-text {
+  background-image: radial-gradient(
+    67.66% 67.65% at 50.07% 32.35%,
+    var(--text) 0,
+    color-mix(in srgb, var(--text) 65%, transparent) 100%
+  );
+}
+/* mint accent line: white → mint (dark) / teal-ink → teal (light). */
+.grad-text--mint {
+  background-image: radial-gradient(
+    67.66% 67.65% at 50.07% 32.35%,
+    #fff 0,
+    var(--mint) 100%
+  );
+}
+html[data-theme="light"] .grad-text--mint {
+  background-image: radial-gradient(
+    67.66% 67.65% at 50.07% 32.35%,
+    var(--accent-ink) 0,
+    var(--teal) 100%
+  );
+}
+
+/* ── 2. Inset white rim-light card ────────────────────────────────────────
+ * Ported --shadow-1/2/3 tokens: a hairline top-left inner light + a soft inner
+ * glow. --shadow-rim-1 = strongest glow, -3 = tightest. .rim-card stacks the
+ * rim in front of the existing --shadow-card in ONE box-shadow declaration so
+ * it composes with .card's background/border instead of replacing its shadow. */
+:root {
+  --shadow-rim-1: 0.0625rem 0.0625rem 0.0625rem 0 rgba(255, 255, 255, 0.1) inset,
+    0 0 6.25rem 0 rgba(255, 255, 255, 0.15) inset;
+  --shadow-rim-2: 0.0625rem 0.0625rem 0.0625rem 0 rgba(255, 255, 255, 0.1) inset,
+    0 0 6.25rem 0 rgba(255, 255, 255, 0.1) inset;
+  --shadow-rim-3: 0.0625rem 0.0625rem 0.0625rem 0 rgba(255, 255, 255, 0.1) inset,
+    0 0 0.625rem 0 rgba(255, 255, 255, 0.1) inset;
+}
+/* light: swap the white rim for a soft ink/teal rim at much lower alpha. */
+html[data-theme="light"] {
+  --shadow-rim-1: 0.0625rem 0.0625rem 0.0625rem 0
+      color-mix(in srgb, var(--accent-ink) 12%, transparent) inset,
+    0 0 6.25rem 0 color-mix(in srgb, var(--teal) 8%, transparent) inset;
+  --shadow-rim-2: 0.0625rem 0.0625rem 0.0625rem 0
+      color-mix(in srgb, var(--accent-ink) 12%, transparent) inset,
+    0 0 6.25rem 0 color-mix(in srgb, var(--teal) 6%, transparent) inset;
+  --shadow-rim-3: 0.0625rem 0.0625rem 0.0625rem 0
+      color-mix(in srgb, var(--accent-ink) 12%, transparent) inset,
+    0 0 0.625rem 0 color-mix(in srgb, var(--teal) 6%, transparent) inset;
+}
+.rim-card {
+  box-shadow: var(--shadow-rim-1), var(--shadow-card);
+}
+
+/* ── 3. Hairline button border ────────────────────────────────────────────
+ * Pseudo-element hairline (white ~10%) that brightens to white (dark) /
+ * accent-ink (light) on hover + focus-visible. Composes with .btn's base —
+ * only adds position:relative + an ::after overlay, no geometry change. */
+.btn-hairline {
+  position: relative;
+}
+.btn-hairline::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: var(--border-w) solid rgba(255, 255, 255, 0.1);
+  border-radius: inherit;
+  pointer-events: none;
+  transition: border-color 0.2s ease;
+}
+.btn-hairline:hover::after,
+.btn-hairline:focus-visible::after {
+  border-color: #fff;
+}
+html[data-theme="light"] .btn-hairline::after {
+  border-color: var(--line);
+}
+html[data-theme="light"] .btn-hairline:hover::after,
+html[data-theme="light"] .btn-hairline:focus-visible::after {
+  border-color: var(--accent-ink);
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn-hairline::after {
+    transition: none;
+  }
+}

@@ -1,0 +1,57 @@
+/* OnRamp — micro-visuals.css
+ * Sizing + choreography for the supporting visual moments in micro-visuals.js.
+ * Tokens only (var(--...)); reuses the existing easing vars. Own reduced-motion
+ * block near the bottom. Nothing here fires until the JS injects the markup.
+ */
+
+/* ---- Progress rail (Ascent) --------------------------------------------- */
+.onramp-rail { display: block; width: 100%; line-height: 0; }
+.onramp-rail .rail-svg { display: block; width: 100%; height: auto; }
+/* soft "you are here" breathing on the current waypoint — draws the eye to the
+ * one active step; slow + subtle, killed under reduced motion. */
+.onramp-rail .rail-now { animation: railPulse 2.6s var(--ease-in-out) infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes railPulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .78; }
+}
+
+/* ---- Empty state (Constellation) ---------------------------------------- */
+.onramp-constellation { display: block; width: min(220px, 62%); margin: 0 auto var(--space-4); line-height: 0; }
+.onramp-constellation .const-svg { display: block; width: 100%; height: auto; }
+/* the single lit point glows gently — quiet + hopeful */
+.onramp-constellation .const-you { animation: constTwinkle 3.4s var(--ease-in-out) infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes constTwinkle {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .7; }
+}
+
+/* ---- Plan reveal (Signal) ------------------------------------------------
+ * planReveal() adds `.pr-item` (+ transient `.pr-cloaked`) to each card. Items
+ * transition from a faint, blurred, scattered state to their final position;
+ * per-item delay via --pr-d keeps the whole run ≤600ms. */
+.pr-item {
+  transition:
+    opacity .36s var(--ease-out),
+    transform .36s var(--ease-out),
+    filter .34s var(--ease-out);
+  transition-delay: var(--pr-d, 0ms);
+  will-change: opacity, transform, filter;
+}
+.pr-item.pr-cloaked {
+  opacity: .04;
+  transform: translate(var(--pr-x, 0px), 12px) scale(.986);
+  filter: blur(5px);
+}
+
+/* ---- reduced motion ------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  .onramp-rail .rail-now,
+  .onramp-constellation .const-you { animation: none; }
+  /* belt-and-suspenders with planReveal's JS early-return: force final state */
+  .pr-item, .pr-item.pr-cloaked {
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+}
