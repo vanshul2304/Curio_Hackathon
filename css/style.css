@@ -34,6 +34,7 @@
   --container-narrow: 480px;   /* focused single column: intake + plan on mobile/tablet */
   --container-wide: 720px;     /* landing marketing column */
   --container-max: 1120px;     /* plan expands to this at ≥1024px (multi-column) */
+  --container-xl: 1520px;      /* landing hero content at ≥1024px — full-bleed section, bounded content */
 
   /* ---- fluid type scale (clamp: min @375, max @1440+) ---- */
   --text-xs: 0.8rem;
@@ -88,19 +89,28 @@ input { font: inherit; }
 #app { min-height: 100dvh; display: flex; flex-direction: column; }
 
 /* Containers: mobile-first focused column, gutters scale up with viewport.
-   Intake stays a narrow single column (focus). Landing + plan widen at ≥1024px. */
-.landing, .intake, .plan, .browse {
+   Intake stays a narrow single column (focus). Plan widens at ≥1024px.
+   Landing is full-bleed (background spans the viewport); content lives in .landing-inner. */
+.intake, .plan, .browse {
   width: 100%;
   max-width: var(--container-narrow);
   margin: 0 auto;
   padding: var(--space-5) var(--space-5) var(--space-8);
   position: relative;
 }
-.landing { max-width: var(--container-wide); }
 .browse { max-width: 640px; }
 
+/* full-bleed landing: background reaches both viewport edges; content bounded by .landing-inner */
+.landing { width: 100%; position: relative; }
+.landing-inner {
+  width: 100%;
+  max-width: var(--container-wide);
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-5) var(--space-8);
+}
+
 @media (min-width: 768px) {
-  .landing, .intake, .plan, .browse { padding-left: var(--space-6); padding-right: var(--space-6); }
+  .intake, .plan, .browse, .landing-inner { padding-left: var(--space-6); padding-right: var(--space-6); }
 }
 /* ≥1024px: the plan is content-dense (course + rooms + next) — give it room and columns.
    Intake stays narrow on purpose: one question at a time reads best focused. */
@@ -253,6 +263,7 @@ input { font: inherit; }
   transition: border-color .2s ease, box-shadow .2s ease;
 }
 .search-bar:focus-within { border-color: var(--mint); box-shadow: var(--glow-mint); }
+.landing .search-bar { max-width: none; }   /* fills the content column on the landing */
 .search-ic { color: var(--muted); display: inline-flex; flex-shrink: 0; }
 .search-ic .ic { width: 1.2rem; height: 1.2rem; }
 .search-bar input {
@@ -264,7 +275,7 @@ input { font: inherit; }
 .search-bar input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
 .search-go {
   flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
-  width: 2.4rem; height: 2.4rem; border-radius: 50%;
+  width: 2.75rem; height: 2.75rem; border-radius: 50%;   /* 44px touch target */
   background: linear-gradient(135deg, var(--mint), var(--teal)); color: #04231D;
   transition: transform .15s ease, box-shadow .2s ease;
 }
@@ -278,7 +289,8 @@ input { font: inherit; }
   max-width: 34rem; margin: 0 auto 1.5rem;
 }
 .focus-chip {
-  padding: .5rem .95rem; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 44px; padding: .5rem .95rem; border-radius: 999px;
   background: var(--surface); border: 1px solid var(--line);
   color: var(--muted); font-size: .9rem; font-weight: 600;
   transition: color .2s ease, border-color .2s ease, background .2s ease, transform .12s ease, box-shadow .2s ease;
@@ -307,10 +319,14 @@ input { font: inherit; }
 .anti-line .anti-ic .ic { width: 1.15rem; height: 1.15rem; margin-top: .12rem; }
 
 /* ≥1024px: asymmetric two-zone landing — hero content left, "how it works" right.
-   Breaks the centered-everything symmetry; mobile stays a single centered column. */
+   Full-height first screen; content bounded + vertically centered. Mobile stays a single centered column. */
 @media (min-width: 1024px) {
   .landing {
-    max-width: var(--container-max);
+    min-height: 100dvh;
+    display: flex; align-items: center;
+  }
+  .landing-inner {
+    max-width: var(--container-xl);
     display: grid; grid-template-columns: 1.12fr .88fr;
     gap: clamp(3rem, 5vw, 5rem); align-items: center;
   }
