@@ -335,6 +335,18 @@ input { font: inherit; }
   30% { box-shadow: 0 0 0 3px rgba(122,226,207,.55), var(--glow-mint); }
 }
 
+/* generative cover art — full-bleed banner, fixed aspect ratio (no CLS) */
+.card-cover {
+  margin: -1.3rem -1.25rem 1.1rem;
+  border-radius: var(--radius) var(--radius) 0 0;
+  overflow: hidden;
+  aspect-ratio: 40 / 13;
+  border-bottom: 1px solid var(--line);
+  background: #081119;
+}
+.card-cover .cover-art { display: block; width: 100%; height: 100%; }
+.course-card.has-cover { padding-top: 1.3rem; }
+
 .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: .8rem; margin-bottom: .7rem; }
 .card-title { font-size: 1.25rem; line-height: 1.25; letter-spacing: -.01em; }
 .card-title.sm { font-size: 1.08rem; }
@@ -430,9 +442,41 @@ input { font: inherit; }
 .learn-first:hover { color: #b9f2e6; }
 .learn-first .ic { width: 1.1em; height: 1.1em; }
 
-.event-actions { display: flex; gap: .6rem; margin-top: .5rem; }
-.event-actions .btn { flex: 1; padding: .7rem 1rem; font-size: .93rem; }
+.event-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .5rem; }
+.event-actions .btn, .event-actions .cal-btn { padding: .7rem 1rem; font-size: .93rem; }
+.event-actions .signup { flex: 1; }
 .save-btn.saved { border-color: var(--mint); color: var(--mint); background: rgba(122,226,207,.1); }
+
+/* add-to-calendar — native <details> dropdown, no JS to open */
+.cal { position: relative; }
+.cal > summary {
+  list-style: none; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  border-radius: 999px; font-weight: 650;
+}
+.cal > summary::-webkit-details-marker { display: none; }
+.cal > summary::marker { content: ''; }
+.cal-menu {
+  position: absolute; z-index: 20;
+  bottom: calc(100% + .45rem); right: 0;
+  min-width: 12.5rem;
+  display: flex; flex-direction: column;
+  padding: .35rem;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 12px 32px -8px rgba(0,0,0,.65), var(--glow-mint);
+  animation: cardIn .22s ease both;
+}
+.cal-item {
+  display: flex; align-items: center; gap: .55rem;
+  width: 100%; text-align: left; text-decoration: none;
+  padding: .6rem .7rem; border-radius: .55rem;
+  color: var(--text); font-size: .9rem; font-weight: 600;
+  transition: background .15s ease, color .15s ease;
+}
+.cal-item:hover { background: rgba(122,226,207,.12); color: var(--mint); }
+.cal-item .ic { width: 1.1em; height: 1.1em; }
 
 .teaser .teaser-txt { color: var(--muted); font-size: .93rem; margin-top: .6rem; }
 

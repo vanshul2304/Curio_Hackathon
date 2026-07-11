@@ -204,10 +204,204 @@
         return wrap('<circle cx="6" cy="12" r="2.2" stroke="currentColor" stroke-width="1.6"/><circle cx="17" cy="6" r="2.2" stroke="currentColor" stroke-width="1.6"/><circle cx="17" cy="18" r="2.2" stroke="currentColor" stroke-width="1.6"/><path d="m8 11 7-4M8 13l7 4" stroke="currentColor" stroke-width="1.6"/>');
       case 'bookmark':
         return wrap('<path d="M7 4h10v16l-5-3.5L7 20V4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/>');
+      case 'download':
+        return wrap('<path d="M12 4v10m0 0 3.5-3.5M12 14 8.5 10.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' +
+          '<path d="M5 16.5v1.5A1.5 1.5 0 0 0 6.5 19.5h11a1.5 1.5 0 0 0 1.5-1.5v-1.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>');
       default:
         return wrap('<circle cx="12" cy="12" r="8" stroke="#7AE2CF" stroke-width="1.6"/>');
     }
   }
+
+  /* =====================================================================
+   * GENERATIVE COVER ART — deterministic inline SVG banners (no external
+   * images). Seeded by id hash so every card is distinct but stable across
+   * reloads; motif + hue chosen per event kind / course topic. Layered
+   * gradient mesh + feTurbulence grain + geometric motif, dark+mint family.
+   * ===================================================================== */
+  var _caid = 0;
+  function hashStr(s) {
+    var h = 2166136261 >>> 0; s = String(s == null ? '' : s);
+    for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+  function rngFrom(seed) {
+    var a = seed >>> 0;
+    return function () {
+      a = a + 0x6D2B79F5 | 0;
+      var t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  // kind/topic -> { motif shape, accent hue }. Event kinds get the look asked
+  // for (hackathon=angular, meetup=circles, workshop=grid, talk=waveform,
+  // study-group=pages); course topics reuse the shape kit at their own hue.
+  var COVER_MAP = {
+    hackathon: { shape: 'shards', hue: 20 },
+    meetup: { shape: 'orbs', hue: 44 },
+    workshop: { shape: 'grid', hue: 168 },
+    talk: { shape: 'wave', hue: 192 },
+    'study-group': { shape: 'pages', hue: 158 },
+    fundamentals: { shape: 'orbs', hue: 165 },
+    ml: { shape: 'wave', hue: 178 },
+    python: { shape: 'grid', hue: 150 },
+    prompting: { shape: 'spark', hue: 46 },
+    'llm-apps': { shape: 'shards', hue: 186 },
+    agents: { shape: 'spark', hue: 200 },
+    career: { shape: 'pages', hue: 34 }
+  };
+  function n0(x) { return Math.round(x); }
+  var MOTIF = {
+    shards: function (r, acc, mint) { // angular, energetic
+      var s = '';
+      for (var i = 0; i < 6; i++) {
+        var x = r() * 440 - 20, y = r() * 240 - 20, z = 46 + r() * 120;
+        s += '<polygon points="' + n0(x) + ',' + n0(y) + ' ' + n0(x + z) + ',' + n0(y + z * 0.34) +
+          ' ' + n0(x + z * 0.42) + ',' + n0(y + z) + '" fill="' + (i % 2 ? acc : mint) +
+          '" opacity="' + (0.12 + r() * 0.34).toFixed(2) + '"/>';
+      }
+      return s;
+    },
+    orbs: function (r, acc, mint) { // warm overlapping circles / people
+      var s = '';
+      for (var i = 0; i < 8; i++) {
+        var x = n0(r() * 400), y = n0(r() * 200), rad = n0(12 + r() * 58), col = i % 3 ? mint : acc;
+        s += r() < 0.45
+          ? '<circle cx="' + x + '" cy="' + y + '" r="' + rad + '" fill="' + col + '" opacity="' + (0.08 + r() * 0.22).toFixed(2) + '"/>'
+          : '<circle cx="' + x + '" cy="' + y + '" r="' + rad + '" fill="none" stroke="' + col + '" stroke-width="' + (1 + r() * 2).toFixed(1) + '" opacity="' + (0.14 + r() * 0.3).toFixed(2) + '"/>';
+      }
+      return s;
+    },
+    grid: function (r, acc, mint) { // workshop / tools
+      var s = '', cols = 8, rows = 4, cw = 400 / cols, ch = 200 / rows, pad = cw * 0.2;
+      for (var gy = 0; gy < rows; gy++) for (var gx = 0; gx < cols; gx++) {
+        if (r() < 0.42) s += '<rect x="' + n0(gx * cw + pad) + '" y="' + n0(gy * ch + pad) +
+          '" width="' + n0(cw - 2 * pad) + '" height="' + n0(ch - 2 * pad) + '" rx="3" fill="' +
+          (r() < 0.3 ? acc : mint) + '" opacity="' + (0.08 + r() * 0.4).toFixed(2) + '"/>';
+      }
+      return s;
+    },
+    wave: function (r, acc, mint) { // talk / waveform
+      var s = '';
+      for (var line = 0; line < 3; line++) {
+        var yb = 55 + line * 46 + r() * 18, amp = 12 + r() * 26, ph = r() * 6, d = 'M-10 ' + n0(yb);
+        for (var x = 0; x <= 410; x += 18) d += ' L' + x + ' ' + n0(yb + Math.sin(x / 38 + ph) * amp);
+        s += '<path d="' + d + '" fill="none" stroke="' + (line === 1 ? acc : mint) +
+          '" stroke-width="2" opacity="' + (0.22 + r() * 0.28).toFixed(2) + '"/>';
+      }
+      return s;
+    },
+    pages: function (r, acc, mint) { // study-group / book pages
+      var s = '';
+      for (var i = 0; i < 5; i++) {
+        var x = 44 + i * 24 + r() * 8, skew = r() * 12 - 6;
+        s += '<rect x="' + n0(x) + '" y="42" width="150" height="118" rx="7" fill="' + (i % 2 ? acc : mint) +
+          '" opacity="' + (0.1 + i * 0.06).toFixed(2) + '" transform="rotate(' + skew.toFixed(1) + ' ' + n0(x + 75) + ' 100)"/>';
+      }
+      return s;
+    },
+    spark: function (r, acc, mint) { // prompting / burst
+      var cx = 110 + r() * 180, cy = 55 + r() * 90, s = '', rays = 11;
+      for (var i = 0; i < rays; i++) {
+        var ang = (i / rays) * Math.PI * 2 + r() * 0.3, len = 28 + r() * 74;
+        s += '<line x1="' + n0(cx) + '" y1="' + n0(cy) + '" x2="' + n0(cx + Math.cos(ang) * len) +
+          '" y2="' + n0(cy + Math.sin(ang) * len) + '" stroke="' + (i % 2 ? acc : mint) +
+          '" stroke-width="2" stroke-linecap="round" opacity="' + (0.2 + r() * 0.34).toFixed(2) + '"/>';
+      }
+      return s + '<circle cx="' + n0(cx) + '" cy="' + n0(cy) + '" r="6" fill="' + mint + '"/>';
+    }
+  };
+  // seed = stable id; motifKey = event.kind or course topic. Returns a full SVG.
+  function coverArt(seed, motifKey) {
+    var conf = COVER_MAP[motifKey] || COVER_MAP.meetup;
+    var r = rngFrom(hashStr(seed + '|' + motifKey));
+    var id = 'ca' + (++_caid);
+    var acc = 'hsl(' + conf.hue + ',72%,64%)';
+    var mint = '#7AE2CF';
+    var b1x = n0(12 + r() * 32), b1y = n0(8 + r() * 40);
+    var b2x = n0(55 + r() * 40), b2y = n0(42 + r() * 52);
+    var rot = (r() * 18 - 9).toFixed(1);
+    var motif = MOTIF[conf.shape] || MOTIF.orbs;
+    return '<svg class="cover-art" viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice" role="img" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">' +
+      '<defs>' +
+        '<radialGradient id="' + id + 'a" cx="' + b1x + '%" cy="' + b1y + '%" r="75%"><stop offset="0" stop-color="' + acc + '" stop-opacity=".85"/><stop offset="1" stop-color="' + acc + '" stop-opacity="0"/></radialGradient>' +
+        '<radialGradient id="' + id + 'b" cx="' + b2x + '%" cy="' + b2y + '%" r="70%"><stop offset="0" stop-color="' + mint + '" stop-opacity=".55"/><stop offset="1" stop-color="' + mint + '" stop-opacity="0"/></radialGradient>' +
+        '<linearGradient id="' + id + 'base" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0a1a20"/><stop offset="1" stop-color="#05121a"/></linearGradient>' +
+        '<linearGradient id="' + id + 'fade" x1="0" y1="0" x2="0" y2="1"><stop offset=".5" stop-color="#0a1720" stop-opacity="0"/><stop offset="1" stop-color="#151F25" stop-opacity=".92"/></linearGradient>' +
+        '<filter id="' + id + 'n" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch" result="t"/><feColorMatrix in="t" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .6 0"/></filter>' +
+      '</defs>' +
+      '<rect width="400" height="200" fill="url(#' + id + 'base)"/>' +
+      '<g transform="rotate(' + rot + ' 200 100)">' +
+        '<rect x="-40" y="-40" width="480" height="280" fill="url(#' + id + 'a)"/>' +
+        '<rect x="-40" y="-40" width="480" height="280" fill="url(#' + id + 'b)"/>' +
+        motif(r, acc, mint) +
+      '</g>' +
+      '<rect width="400" height="200" filter="url(#' + id + 'n)" opacity=".05"/>' +
+      '<rect width="400" height="200" fill="url(#' + id + 'fade)"/>' +
+    '</svg>';
+  }
+  function coverHead(seed, motifKey) {
+    return '<div class="card-cover">' + coverArt(seed, motifKey) + '</div>';
+  }
+
+  /* =====================================================================
+   * ADD TO CALENDAR — client-side .ics (Blob download) + Google Calendar
+   * quick-add link. All-day VEVENT from dateISO (we only carry dates).
+   * ===================================================================== */
+  function icsEsc(s) {
+    return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+  }
+  function ymd(iso) { return String(iso || '').replace(/-/g, ''); }
+  function nextYmd(iso) { // all-day DTEND is exclusive → day after
+    var d = new Date(iso + 'T00:00:00Z');
+    if (isNaN(d)) return ymd(iso);
+    d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().slice(0, 10).replace(/-/g, '');
+  }
+  function dtStamp() { return new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, ''); }
+  function eventLocation(e) { return e.mode === 'online' ? 'Online' : (e.city || 'In-person'); }
+  function eventDetails(e) {
+    return 'Added from OnRamp. ' + (e.beginnerSafe ? 'Beginner-safe. ' : '') + (e.url || '');
+  }
+  function buildICS(e) {
+    var lines = [
+      'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//OnRamp//Events//EN', 'CALSCALE:GREGORIAN',
+      'BEGIN:VEVENT',
+      'UID:' + ((e.id || ('evt' + Date.now())) + '@onramp'),
+      'DTSTAMP:' + dtStamp(),
+      'DTSTART;VALUE=DATE:' + ymd(e.dateISO),
+      'DTEND;VALUE=DATE:' + nextYmd(e.dateISO),
+      'SUMMARY:' + icsEsc(e.title),
+      'DESCRIPTION:' + icsEsc(eventDetails(e)),
+      'LOCATION:' + icsEsc(eventLocation(e)),
+      'URL:' + icsEsc(e.url || ''),
+      'END:VEVENT', 'END:VCALENDAR'
+    ];
+    return lines.join('\r\n') + '\r\n';
+  }
+  function gcalLink(e) {
+    var q = 'action=TEMPLATE' +
+      '&text=' + encodeURIComponent(e.title || 'AI event') +
+      '&dates=' + ymd(e.dateISO) + '/' + nextYmd(e.dateISO) +
+      '&details=' + encodeURIComponent(eventDetails(e)) +
+      '&location=' + encodeURIComponent(eventLocation(e));
+    return 'https://calendar.google.com/calendar/render?' + q;
+  }
+  function downloadICS(e) {
+    try {
+      var blob = new Blob([buildICS(e)], { type: 'text/calendar;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = (e.id || 'event') + '.ics';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+      toast('Calendar file downloaded — open it to add “' + (e.title || 'this event') + '”.');
+    } catch (err) {
+      toast('Couldn’t build the calendar file — try the Google option.');
+    }
+  }
+  // expose for a tiny node self-check of the .ics builder
+  window.__onrampICS = { buildICS: buildICS, gcalLink: gcalLink };
 
   /* =====================================================================
    * INTAKE CONFIG
@@ -505,7 +699,8 @@
     var store = loadStore();
 
     var courseCard = c ? (
-      '<article class="card course-card" id="course-anchor" style="--d:120ms">' +
+      '<article class="card course-card has-cover" id="course-anchor" style="--d:120ms">' +
+        coverHead(c.id, (Array.isArray(c.topics) && c.topics[0]) || 'fundamentals') +
         '<div class="step-badge"><span class="step-num">1</span> Start this course</div>' +
         '<div class="card-head">' +
           '<div><h3 class="card-title">' + esc(c.title) + '</h3><div class="provider">' + esc(c.provider) + '</div></div>' +
@@ -524,7 +719,8 @@
       var modeChip = e.mode === 'online'
         ? '<span class="chip">' + icon('globe') + 'Online</span>'
         : '<span class="chip">' + icon('pin') + esc((e.mode === 'hybrid' ? 'Hybrid · ' : '') + (e.city || 'In-person')) + '</span>';
-      return '<article class="card event-card" style="--d:' + (200 + idx * 90) + 'ms">' +
+      return '<article class="card event-card has-cover" style="--d:' + (200 + idx * 90) + 'ms">' +
+        coverHead(e.id, e.kind) +
         '<div class="event-top"><span class="date-pill">' + icon('calendar') + esc(e.dateLabel) + '</span>' + modeChip + '</div>' +
         '<h4 class="card-title sm">' + esc(e.title) + '</h4><div class="provider">' + esc(e.org) + '</div>' +
         (e.beginnerSafe ? '<div class="safe-tag">' + icon('shield') + '<span>Beginner-safe</span></div>' +
@@ -535,7 +731,14 @@
           : 'Learn this first — warm up with your Step 1 course') + '</button>' : '') +
         '<div class="event-actions">' +
           '<button class="btn btn-secondary save-btn' + (isSaved ? ' saved' : '') + '" data-save="' + esc(e.id) + '" aria-pressed="' + (isSaved ? 'true' : 'false') + '">' + icon('bookmark') + '<span class="save-txt">' + (isSaved ? 'Saved' : 'Save') + '</span></button>' +
-          '<a class="btn btn-primary" href="' + esc(e.url) + '" target="_blank" rel="noopener">Sign up <span class="ar">' + icon('arrow') + '</span></a>' +
+          '<details class="cal">' +
+            '<summary class="btn btn-secondary cal-btn" aria-label="Add to calendar">' + icon('calendar') + '<span>Calendar</span></summary>' +
+            '<div class="cal-menu" role="menu">' +
+              '<a class="cal-item" role="menuitem" href="' + esc(gcalLink(e)) + '" target="_blank" rel="noopener">' + icon('globe') + 'Google Calendar</a>' +
+              '<button class="cal-item" role="menuitem" type="button" data-ics="' + esc(e.id) + '">' + icon('download') + 'Download .ics</button>' +
+            '</div>' +
+          '</details>' +
+          '<a class="btn btn-primary signup" href="' + esc(e.url) + '" target="_blank" rel="noopener">Sign up <span class="ar">' + icon('arrow') + '</span></a>' +
         '</div>' +
       '</article>';
     }).join('');
@@ -571,6 +774,21 @@
     document.getElementById('share-btn').addEventListener('click', sharePlan);
     Array.prototype.forEach.call(app.querySelectorAll('.save-btn'), function (b) {
       b.addEventListener('click', function () { toggleSave(b.getAttribute('data-save'), b); });
+    });
+    var eventsById = {};
+    p.events.forEach(function (e) { eventsById[e.id] = e; });
+    Array.prototype.forEach.call(app.querySelectorAll('[data-ics]'), function (b) {
+      b.addEventListener('click', function () {
+        var e = eventsById[b.getAttribute('data-ics')];
+        if (e) downloadICS(e);
+        var d = b.closest('details'); if (d) d.open = false;
+      });
+    });
+    // close any open calendar menu when clicking outside it
+    document.addEventListener('click', function (ev) {
+      Array.prototype.forEach.call(document.querySelectorAll('details.cal[open]'), function (d) {
+        if (!d.contains(ev.target)) d.open = false;
+      });
     });
     Array.prototype.forEach.call(app.querySelectorAll('.learn-first'), function (b) {
       b.addEventListener('click', function () {
@@ -618,6 +836,7 @@
       lines.push('');
     }
     lines.push('STEP 2 — SHOW UP TO THESE ROOMS');
+    lines.push('(Tip: on each room, tap “Calendar” to add it to Google or download a .ics.)');
     p.events.forEach(function (e) {
       lines.push('• ' + e.title + '  —  ' + (e.dateLabel || '') + (e.mode === 'online' ? ' · Online' : (e.city ? ' · ' + e.city : '')));
       if (e.beginnerSafe) lines.push('  Beginner-safe. ' + (e.beginnerNote || ''));
