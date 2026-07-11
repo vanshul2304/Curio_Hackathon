@@ -348,7 +348,6 @@
           '<p class="footnote"><strong>Free</strong> · No account · 2 minutes</p>' +
           heroTrustCities() +
         '</div>' +
-        '<div class="landing-aside">' +
         '<div class="how">' +
           '<div class="how-title">How it works</div>' +
           '<ol class="how-steps">' +
@@ -360,7 +359,6 @@
         '<div class="how landing-faq-block">' +
           '<div class="how-title">FAQs</div>' +
           '<div class="landing-faq"></div>' +
-        '</div>' +
         '</div>' +
         '</div>' +
       '</section>'

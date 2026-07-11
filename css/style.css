@@ -381,9 +381,11 @@ input { font: inherit; }
   .landing .search-bar, .landing .anti-line { margin-left: 0; margin-right: 0; }
   .landing .focus-row { max-width: none; margin-left: 0; margin-right: 0; justify-content: flex-start; }
   .landing .hero-cta { justify-content: flex-start; }
-  /* right zone: "how it works" + FAQs stacked, separated by a token gap */
-  .landing-aside { display: flex; flex-direction: column; gap: var(--space-6); }
-  .landing-aside .how { margin-top: 0; }
+  .landing .how { margin-top: var(--space-7); }
+  /* FAQ: full-width band below the two-zone hero, centered */
+  .landing .landing-faq-block { grid-column: 1 / -1; margin-top: 0; }
+  .landing .landing-faq-block .how-title { text-align: center; }
+  .landing .landing-faq { max-width: var(--container-wide); margin-inline: auto; }
   .landing .how-steps { grid-template-columns: 1fr; }
   .landing .how-title { text-align: left; }
 }
